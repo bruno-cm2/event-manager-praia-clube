@@ -1,9 +1,14 @@
 <style>
 
-  #tipo {
+  .dropdown-menu {
     width: calc(100% + 2px) !important;
     margin-left: -1px !important;
     min-width: 0;
+  }
+
+  .input-group .dropdown-menu{
+    width: auto !important;
+    margin-left: 0 !important;
   }
 
   .bi-underline {
@@ -58,12 +63,12 @@
         <!-- datas -->
         <div class="col-8">
           <div class="input-group dropdown">
-            <button id="inicio" class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside">Início</button>
+            <button id="inicio" class="btn btn-outline-secondary align-self-center dropdown-toggle flex-grow-1 text-start" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-offset="-75%,0">Início</button >
             <div class="dropdown-menu shadow-sm p-0">
               <div id="calendario-inicio"></div>
             </div>
             <span class="input-group-text">até</span>
-            <button id="fim" class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside">Fim</button>
+            <button id="fim" class="btn btn-outline-secondary align-self-center dropdown-toggle flex-grow-1 text-start" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-offset="-75%,0">Fim</button>
             <div class="dropdown-menu shadow-sm p-0">
               <div id="calendario-fim"></div>
             </div>

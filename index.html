@@ -78,11 +78,11 @@
 
     <div class="row h-100">
       <aside class="col-2 shadow p-0">
-        <ul class="nav nav-pills flex-column">
+        <ul class="nav nav-pills d-flex flex-column h-100">
           <img src="https://x1futsal.com.br/wp-content/uploads/2021/04/Escudo-Completo-Praia-Clube.png" class="img-fluid w-50 m-3 mb-4">
           <li class="nav-item p-0">
             <a class="nav-link w-100 text-start text-dark" href="#inicio">
-              <i class="bi bi-house text-secundary"></i>Início
+              <i class="bi bi-house text-warning"></i>Início
             </a>
           </li>
           <li class="nav-item p-0">
@@ -95,13 +95,18 @@
               <i class="bi bi-calendar text-success"></i>Eventos
             </a>
           </li>
+          <li class="nav-item p-0 mt-auto mb-3">
+            <a class="nav-link w-100 text-start text-dark" href="#conta">
+              <i class="bi bi-person-circle text-dark"></i>Conta
+            </a>
+          </li>
         </ul>
       </aside>
       <main class="col py-2 d-flex flex-column border rounded-3 shadow-sm bg-white m-3" id="content"></main>
     </div>
 
     <div class="toast-container position-fixed bottom-0 end-0 p-3">
-      <div id="toast" class="toast align-items-center text-bg-light border-0" role="alert">
+      <div id="toast" class="toast" role="alert">
         <div class="d-flex">
           <div class="toast-body">
           </div>
@@ -158,7 +163,8 @@
       const textMsg = document.getElementById("toast")
       const msg = new bootstrap.Toast(textMsg, {delay: 3000})
 
-      function toast(text){
+      function toast(text, cor = 'light') {
+        textMsg.classList = `toast align-items-center border-0 text-bg-${cor}`
         textMsg.querySelector('.toast-body').textContent = text
         msg.show()
       }
@@ -404,18 +410,45 @@
         },
 
         renderDatas() {
-          if(!inicio.dataset.date) return toast('Selecione uma data de início')
-          if(!fim.dataset.date) return toast('Selecione uma data de fim')
+          if(!inicio.dataset.date) return toast('Selecione uma data de início', 'danger')
+          if(!fim.dataset.date) return toast('Selecione uma data de fim', 'danger')
+  
+          const date = {inicio: new Date(inicio.dataset.date), fim: new Date(fim.dataset.date)}
+          const intervalo = date.fim - date.inicio
 
-          const datas = [inicio.dataset.date, fim.dataset.date]
+          const datas = [...datasSelecionadas.querySelectorAll('button')].map(d => JSON.parse(d.dataset.date))
           
+          if(Math.abs(intervalo) < 60 * 60 * 1000) return toast('Escolha um intervalo de pelo menos 1 hora', 'danger')
+          if(date.inicio > date.fim) {
+            toast('Data de início maior que fim, invertendo...', 'warning');
+            [inicio.textContent, fim.textContent] = [fim.textContent, inicio.textContent];
+            [date.inicio, date.fim] = [date.fim, date.inicio]
+          }
+
+          const folga = 30
+
+          if(datas.some(d => this.isInside(date, d))) return toast('Essa data já foi escolhida', 'danger')
+          if(datas.some(d => this.isInside(date, d, folga))) return toast(`No mínimo ${folga} minutos de folga entre datas`, 'danger')
+
+          const longo = intervalo >= 24 * 60 * 60 * 1000
+          const shortFormat = inicio.textContent + ' até ' + fim.textContent.split(' às ')[1]
+          const longFormat = inicio.textContent + ' até ' + fim.textContent
+
           const btn = document.createElement('button')
           btn.className = 'btn btn-sm align-items-center rounded-2 gap-1 mt-1'
-          btn.textContent = inicio.textContent + ' até ' + fim.textContent
-          btn.dataset.datas = datas
-          btn.classList.add('btn-primary')
+          btn.textContent = longo ? longFormat : shortFormat
+          this.resetDates()
+          btn.dataset.date = JSON.stringify(date)
+          btn.classList.add('btn-' + (longo ? 'primary' : 'success'))
           btn.onclick = () => btn.remove()
           this.datasSelecionadas.appendChild(btn)
+        },
+
+        resetDates(){
+          inicio.textContent = 'Início'
+          fim.textContent = 'Fim'
+          delete inicio.dataset.date
+          delete fim.dataset.date
         },
 
         renderTipos() {
@@ -450,6 +483,11 @@
             this.tipo.appendChild(li)
           })
         },
+
+        isInside(x,y,folga = 0){
+          folga *= 60 * 1000
+          return x.inicio.getTime() < (new Date(y.fim).getTime() + folga) && new Date(y.inicio).getTime() < (x.fim.getTime() - folga)
+        }
       }
 
       document.addEventListener('DOMContentLoaded', () => {
