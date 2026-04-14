@@ -18,6 +18,10 @@
     --bs-btn-border-color: #ced4da;
   }
   
+  button .bi{
+    margin-right: revert !important;
+  }
+
 </style>
 
 <div class="d-flex flex-column gap-4 m-3 mt-2">
@@ -42,7 +46,7 @@
       <div class="row g-2">
 
         <!-- tipo -->
-        <div class="col-3">
+        <div class="col-4">
           <div class="dropdown w-100">
             <button id="tipo-btn" class="btn btn-outline-secondary w-100 text-start dropdown-toggle" data-bs-toggle="dropdown">
               Tipo
@@ -52,7 +56,7 @@
         </div>
 
         <!-- datas -->
-        <div class="col-9">
+        <div class="col-8">
           <div class="input-group dropdown">
             <button id="inicio" class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside">Início</button>
             <div class="dropdown-menu shadow-sm p-0">
@@ -63,19 +67,23 @@
             <div class="dropdown-menu shadow-sm p-0">
               <div id="calendario-fim"></div>
             </div>
-          <button id="add" class="btn btn-outline-secondary">
-            <i class="bi bi-plus-lg flex-grow-0"></i>
-          </button>
+            <button id="add-btn" class="btn btn-outline-secondary">
+              <i class="bi bi-plus-lg flex-grow-0"></i>
+            </button>
           </div>
         </div>
-        
       </div>
+
+      <!-- datas selecionadas -->
+      <div id="datasSelecionadas" class="d-flex flex-wrap gap-1"></div>
+
     </div>
   </div>
 
   <!-- LOCAIS -->
   <div class="d-flex gap-1 col-7">  
     <div class="col">
+
       <div class="dropdown w-100">
         <button class="btn btn-outline-secondary w-100 text-start dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
           Selecionar locais
@@ -92,6 +100,7 @@
 
       <!-- selecionados (cresce verticalmente) -->
       <div id="locaisSelecionados" class="d-flex flex-wrap gap-1"></div>
+
     </div>
   </div>
 
@@ -104,6 +113,6 @@
 
   <!-- AÇÕES -->
   <div class="d-flex justify-content-end gap-2 col-7">
-    <button id="btn-add" class="btn btn-primary rounded" type="submit">Adicionar</button>
+    <button id="btn-add" class="btn btn-outline-secondary rounded" type="submit">Adicionar</button>
   </div>
 </div>

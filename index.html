@@ -40,8 +40,27 @@
         background-color: var(--bs-dropdown-link-hover-bg);
       }
 
-      .disabled{
+      .dropdown .disabled{
         background-color: white !important;
+      }
+
+      .bi{
+        margin-right: 0.5rem !important;
+      }
+
+      .nav-pills .nav-link{
+        border-radius: 0;
+      }
+
+      .nav-pills .nav-link{
+        border: 1px solid transparent;
+        border-inline: 0 !important;
+        --bs-nav-pills-link-active-bg: #ced4da;
+      }
+
+      .nav-pills .nav-link:not(.active):hover{
+        background-color: var(--bs-light);
+        border-color: var(--bs-border-color)
       }
 
     </style>
@@ -58,22 +77,22 @@
     </template>
 
     <div class="row h-100">
-      <aside class="col-2 shadow">
-        <ul class="nav flex-column">
+      <aside class="col-2 shadow p-0">
+        <ul class="nav nav-pills flex-column">
           <img src="https://x1futsal.com.br/wp-content/uploads/2021/04/Escudo-Completo-Praia-Clube.png" class="img-fluid w-50 m-3 mb-4">
-          <li class="nav-item">
-            <a class="nav-link active" href="#" style="color: black">
-              <i class="bi bi-house me-2 text-secundary"></i>Início
+          <li class="nav-item p-0">
+            <a class="nav-link w-100 text-start text-dark" href="#inicio">
+              <i class="bi bi-house text-secundary"></i>Início
             </a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#add" style="color: black">
-              <i class="bi bi-pencil-square me-2 text-primary"></i>Criar
+          <li class="nav-item p-0">
+            <a class="nav-link w-100 text-start text-dark" href="#add">
+              <i class="bi bi-pencil-square text-primary"></i>Criar
             </a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#eventos" style="color: black">
-              <i class="bi bi-calendar me-2 text-success"></i>Eventos
+          <li class="nav-item p-0">
+            <a class="nav-link w-100 text-start text-dark" href="#eventos">
+              <i class="bi bi-calendar text-success"></i>Eventos
             </a>
           </li>
         </ul>
@@ -108,11 +127,17 @@
       const content = document.getElementById('content')
       const cache = {}
 
+      const sidebarLinks = document.querySelectorAll('.nav-link')
+
       window.addEventListener('hashchange', () => {go(location.hash.slice(1))})
 
       function go(page) {
         const tpl = document.getElementById(`view-${page}`)
         if (!tpl) return
+
+        sidebarLinks.forEach(a => {
+          a.classList.toggle('active', a.getAttribute('href') === `#${page}`)
+        })
 
         content.innerHTML = ''
         content.appendChild(tpl.content.cloneNode(true))
@@ -275,10 +300,15 @@
           this.buscaLocais = document.getElementById('busca-locais')
           this.listaLocais = document.getElementById('lista-locais')
           this.locaisSelecionados = document.getElementById('locaisSelecionados')
+          this.addBtn = document.getElementById('add-btn')
+          this.datasSelecionadas = document.getElementById('datasSelecionadas')
+          this.inicio = document.getElementById('inicio')
+          this.fim = document.getElementById('fim')
         },
 
         bind() {
           this.buscaLocais.oninput = () => this.renderListaLocais(this.buscaLocais.value)
+          this.addBtn.onclick = () => this.renderDatas()
         },
 
         renderListaLocais(filtro = '') {
@@ -294,7 +324,7 @@
             // setor
             const header = document.createElement('div')
             header.className = 'dropdown-item rounded fw-bold ps-2 sticky-top dropdown-header-sticky'
-            header.textContent = setor.nome.replace("Complexo de", '').replace("Complexo ", '').replace("Salão", '')
+            header.textContent = setor.nome
             header.id = setor.id
             header.onclick = () => this.selecionarLocal(setor)
             this.listaLocais.appendChild(header)
@@ -304,7 +334,7 @@
               const item = document.createElement('div')
               item.className = 'dropdown-item rounded p-0 ps-3'
               item.id = q.id
-              item.textContent = q.nome.startsWith("Restaurante/Salão") || q.nome == "Piscina Olímpica" ? q.nome.split(' ')[0] : q.nome
+              item.textContent = q.nome
               item.onclick = () => this.selecionarLocal(q)
               this.listaLocais.appendChild(item)
             })
@@ -322,7 +352,7 @@
             const btn = document.createElement('button')
             btn.className = 'btn btn-sm align-items-center rounded-2 gap-1 mt-1'
             btn.textContent = l.tipo == 'quadra' ? `${l.setor}: ${l.nome}` : l.nome
-            btn.classList.add('btn-' + (l.tipo == 'setor' ? 'dark' : 'outline-dark'))
+            btn.classList.add('btn-' + (l.tipo == 'setor' ? 'primary' : 'success'))
             btn.onclick = () => this.apagarLocal(l)
             this.locaisSelecionados.appendChild(btn)
           })
@@ -345,17 +375,17 @@
         },
 
         renderCalendar() {
-          const inicio = document.getElementById('inicio')
-          const fim = document.getElementById('fim')
 
           flatpickr("#calendario-inicio", {
             locale: "pt",
             inline: true,
             enableTime: true,
             time_24hr: true,
-            dateFormat: "d/m/Y H:i",
+            dateFormat: "d/m \\à\\s H:i",
             onChange: (selectedDates, dateStr) => {
               inicio.textContent = dateStr
+              inicio.color = 'black'
+              inicio.dataset.date = selectedDates[0]
             }
           })
 
@@ -364,11 +394,28 @@
             inline: true,
             enableTime: true,
             time_24hr: true,
-            dateFormat: "d/m/Y H:i",
+            dateFormat: "d/m \\à\\s H:i",
             onChange: (selectedDates, dateStr) => {
               fim.textContent = dateStr
+              fim.color = 'black'
+              fim.dataset.date = selectedDates[0]
             }
           })
+        },
+
+        renderDatas() {
+          if(!inicio.dataset.date) return toast('Selecione uma data de início')
+          if(!fim.dataset.date) return toast('Selecione uma data de fim')
+
+          const datas = [inicio.dataset.date, fim.dataset.date]
+          
+          const btn = document.createElement('button')
+          btn.className = 'btn btn-sm align-items-center rounded-2 gap-1 mt-1'
+          btn.textContent = inicio.textContent + ' até ' + fim.textContent
+          btn.dataset.datas = datas
+          btn.classList.add('btn-primary')
+          btn.onclick = () => btn.remove()
+          this.datasSelecionadas.appendChild(btn)
         },
 
         renderTipos() {
