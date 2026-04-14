@@ -1,0 +1,45 @@
+<script>
+
+  function clamp(value, min, max) {
+    value = Number(value)
+    if (Number.isNaN(value)) return ''
+    return Math.min(Math.max(value, min), max)
+  }
+
+  function disable(obj){
+    if(Array.isArray(obj)) obj.forEach(disable)
+    else obj.disabled = true
+  }
+
+  function enable(obj){
+    if(Array.isArray(obj)) obj.forEach(enable)
+    else obj.disabled = false
+  }
+
+  function capital(str){
+    str = String(str)
+    return str.charAt(0).toUpperCase() + str.slice(1)
+  }
+
+  Date.prototype.data = function(){
+    return this.toLocaleDateString('pt-BR', {
+      month: 'numeric',
+      day: 'numeric'
+    })
+  }
+
+  Date.prototype.datahora = function(){
+    const data = this.toLocaleDateString('pt-BR', {
+      month: 'numeric',
+      day: 'numeric',
+    })
+
+    const hora = this.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+
+    return data + ' às ' + hora
+  }
+
+</script>
