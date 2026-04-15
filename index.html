@@ -306,15 +306,17 @@
           this.buscaLocais = document.getElementById('busca-locais')
           this.listaLocais = document.getElementById('lista-locais')
           this.locaisSelecionados = document.getElementById('locaisSelecionados')
-          this.addBtn = document.getElementById('add-btn')
-          this.datasSelecionadas = document.getElementById('datasSelecionadas')
           this.inicio = document.getElementById('inicio')
           this.fim = document.getElementById('fim')
+          this.addBtn = document.getElementById('add-btn')
+          this.reverseBtn = document.getElementById('rev-btn')
+          this.datasSelecionadas = document.getElementById('datasSelecionadas')
         },
 
         bind() {
           this.buscaLocais.oninput = () => this.renderListaLocais(this.buscaLocais.value)
           this.addBtn.onclick = () => this.renderDatas()
+          this.reverseBtn.onclick = () => this.reverseDates()
         },
 
         renderListaLocais(filtro = '') {
@@ -389,9 +391,9 @@
             time_24hr: true,
             dateFormat: "d/m \\à\\s H:i",
             onChange: (selectedDates, dateStr) => {
-              inicio.textContent = dateStr
-              inicio.color = 'black'
-              inicio.dataset.date = selectedDates[0]
+              this.inicio.textContent = dateStr
+              this.inicio.color = 'black'
+              this.inicio.dataset.date = selectedDates[0]
             }
           })
 
@@ -402,18 +404,18 @@
             time_24hr: true,
             dateFormat: "d/m \\à\\s H:i",
             onChange: (selectedDates, dateStr) => {
-              fim.textContent = dateStr
-              fim.color = 'black'
-              fim.dataset.date = selectedDates[0]
+              this.fim.textContent = dateStr
+              this.fim.color = 'black'
+              this.fim.dataset.date = selectedDates[0]
             }
           })
         },
 
         renderDatas() {
-          if(!inicio.dataset.date) return toast('Selecione uma data de início', 'danger')
-          if(!fim.dataset.date) return toast('Selecione uma data de fim', 'danger')
+          if(!this.inicio.dataset.date) return toast('Selecione uma data de início', 'danger')
+          if(!this.fim.dataset.date) return toast('Selecione uma data de fim', 'danger')
   
-          const date = {inicio: new Date(inicio.dataset.date), fim: new Date(fim.dataset.date)}
+          const date = {inicio: new Date(this.inicio.dataset.date), fim: new Date(this.fim.dataset.date)}
           const intervalo = date.fim - date.inicio
 
           const datas = [...datasSelecionadas.querySelectorAll('button')].map(d => JSON.parse(d.dataset.date))
@@ -421,34 +423,31 @@
           if(Math.abs(intervalo) < 60 * 60 * 1000) return toast('Escolha um intervalo de pelo menos 1 hora', 'danger')
           if(date.inicio > date.fim) {
             toast('Data de início maior que fim, invertendo...', 'warning');
-            [inicio.textContent, fim.textContent] = [fim.textContent, inicio.textContent];
-            [date.inicio, date.fim] = [date.fim, date.inicio]
+            this.reverseDates()
           }
 
           const folga = 30
 
-          if(datas.some(d => this.isInside(date, d))) return toast('Essa data já foi escolhida', 'danger')
+          try{if(datas.some(d => this.isInside(date, d))) return toast('Essa data já foi escolhida', 'danger')
           if(datas.some(d => this.isInside(date, d, folga))) return toast(`No mínimo ${folga} minutos de folga entre datas`, 'danger')
 
           const longo = intervalo >= 24 * 60 * 60 * 1000
-          const shortFormat = inicio.textContent + ' até ' + fim.textContent.split(' às ')[1]
-          const longFormat = inicio.textContent + ' até ' + fim.textContent
+          const shortFormat = this.inicio.textContent + ' até ' + this.fim.textContent.split(' às ')[1]
+          const longFormat = this.inicio.textContent + ' até ' + this.fim.textContent
 
           const btn = document.createElement('button')
           btn.className = 'btn btn-sm align-items-center rounded-2 gap-1 mt-1'
           btn.textContent = longo ? longFormat : shortFormat
-          this.resetDates()
           btn.dataset.date = JSON.stringify(date)
           btn.classList.add('btn-' + (longo ? 'primary' : 'success'))
           btn.onclick = () => btn.remove()
-          this.datasSelecionadas.appendChild(btn)
+          this.datasSelecionadas.appendChild(btn)}catch(e){toast(e, 'danger')}
         },
 
-        resetDates(){
-          inicio.textContent = 'Início'
-          fim.textContent = 'Fim'
-          delete inicio.dataset.date
-          delete fim.dataset.date
+        reverseDates(){
+          [this.inicio.innerHTML, this.fim.innerHTML] = [this.fim.innerHTML, this.inicio.innerHTML]
+          if(this.inicio.textContent == 'Fim') this.inicio.textContent = 'Início'
+          if(this.fim.textContent == 'Início') this.fim.textContent = 'Fim'
         },
 
         renderTipos() {
@@ -486,7 +485,7 @@
 
         isInside(x,y,folga = 0){
           folga *= 60 * 1000
-          return x.inicio.getTime() < (new Date(y.fim).getTime() + folga) && new Date(y.inicio).getTime() < (x.fim.getTime() - folga)
+          return x.inicio.getTime() < (new Date(y.fim).getTime() + folga - 1000) && new Date(y.inicio).getTime() < (x.fim.getTime() - folga + 1000)
         }
       }
 

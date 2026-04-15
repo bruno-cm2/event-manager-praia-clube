@@ -24,7 +24,7 @@
   }
   
   button .bi{
-    margin-right: revert !important;
+    margin-right: unset !important;
   }
 
 </style>
@@ -38,11 +38,8 @@
   </div>
   
   <!-- TÍTULO -->
-  <div class="d-flex gap-1 col-7">    
-    <div class="col">
-      <input id="titulo" class="form-control" placeholder="Título" required>
-      <div class="invalid-feedback">Informe um título</div>
-    </div>
+  <div class="d-flex col-7">    
+    <input id="titulo" class="form-control" placeholder="Título">
   </div>
 
   <!-- DATA E TIPO-->
@@ -63,16 +60,18 @@
         <!-- datas -->
         <div class="col-8">
           <div class="input-group dropdown">
-            <button id="inicio" class="btn btn-outline-secondary align-self-center dropdown-toggle flex-grow-1 text-start" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-offset="-75%,0">Início</button >
+            <button id="inicio" class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-offset="-75%,0">Início</button >
             <div class="dropdown-menu shadow-sm p-0">
               <div id="calendario-inicio"></div>
             </div>
-            <span class="input-group-text">até</span>
-            <button id="fim" class="btn btn-outline-secondary align-self-center dropdown-toggle flex-grow-1 text-start" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-offset="-75%,0">Fim</button>
+            <button id="rev-btn" class="btn btn-light btn-outline-secondary">
+              <i class="bi bi-arrow-left-right flex-grow-0"></i>
+            </button>
+            <button id="fim" class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-offset="-75%,0">Fim</button>
             <div class="dropdown-menu shadow-sm p-0">
               <div id="calendario-fim"></div>
             </div>
-            <button id="add-btn" class="btn btn-outline-secondary">
+            <button id="add-btn" class="btn btn-light btn-outline-secondary">
               <i class="bi bi-plus-lg flex-grow-0"></i>
             </button>
           </div>
