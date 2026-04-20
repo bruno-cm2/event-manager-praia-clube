@@ -2,6 +2,13 @@
 <html>
   <head>
 
+    <!--  
+      TODO: 
+        Adaptar layout para mobile,
+        Banco de dados login e senha,
+        Cache
+    -->
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
@@ -13,15 +20,25 @@
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css">
     <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/litepicker.js"></script>
-    
+
     <style>
+
 
       html, body{
         height: 100dvh;
       }
 
+      body.view-login .row {
+        visibility: hidden;
+      }
+
       .nav-link{
         font-size: 1.2rem !important;
+        padding-left: 2rem !important;
+      }
+
+      .nav-item{
+        padding: 0 !important;
       }
 
       .flatpickr-calendar{
@@ -63,10 +80,37 @@
         border-color: var(--bs-border-color)
       }
 
+      .header .bi{
+        display: inline-block;
+        padding-bottom: 0;
+      }
+
+      h2{
+        position: relative;
+        top: 3px;
+        margin-left: 0.3rem;
+      }
+
+      input{
+        border-color: #ced4da !important;
+      }
+
+      .btn-outline-secondary{
+        --bs-btn-border-color: #ced4da;
+      }
+
+      button .bi{
+        margin-right: unset !important;
+      }
+
     </style>
 
   </head>
   <body class="container-fluid">
+
+    <template id="view-login">
+      <?!= HtmlService.createHtmlOutputFromFile('login').getContent() ?>
+    </template>
 
     <template id="view-eventos">
       <?!= HtmlService.createHtmlOutputFromFile('eventos').getContent() ?>
@@ -76,36 +120,58 @@
       <?!= HtmlService.createHtmlOutputFromFile('add').getContent() ?>
     </template>
 
+    <template id="view-account">
+      <?!= HtmlService.createHtmlOutputFromFile('account').getContent() ?>
+    </template>
+
     <div class="row h-100">
       <aside class="col-2 shadow p-0">
         <ul class="nav nav-pills d-flex flex-column h-100">
-          <img src="https://x1futsal.com.br/wp-content/uploads/2021/04/Escudo-Completo-Praia-Clube.png" class="img-fluid w-50 m-3 mb-4">
-          <li class="nav-item p-0">
+          <img src="https://x1futsal.com.br/wp-content/uploads/2021/04/Escudo-Completo-Praia-Clube.png" class="img-fluid w-50 mx-auto mt-4 mb-4">
+          <li class="nav-item">
             <a class="nav-link w-100 text-start text-dark" href="#inicio">
               <i class="bi bi-house text-warning"></i>Início
             </a>
           </li>
-          <li class="nav-item p-0">
+          <li class="nav-item">
             <a class="nav-link w-100 text-start text-dark" href="#add">
               <i class="bi bi-pencil-square text-primary"></i>Criar
             </a>
           </li>
-          <li class="nav-item p-0">
+          <li class="nav-item">
             <a class="nav-link w-100 text-start text-dark" href="#eventos">
               <i class="bi bi-calendar text-success"></i>Eventos
             </a>
           </li>
-          <li class="nav-item p-0 mt-auto mb-3">
-            <a class="nav-link w-100 text-start text-dark" href="#conta">
+          <li class="nav-item mt-auto mb-3">
+            <a class="nav-link w-100 text-start text-dark" href="#account">
               <i class="bi bi-person-circle text-dark"></i>Conta
             </a>
           </li>
         </ul>
       </aside>
-      <main class="col py-2 d-flex flex-column border rounded-3 shadow-sm bg-white m-3" id="content"></main>
+      <main class="col d-flex flex-column border rounded-3 shadow-sm bg-white m-3 p-4" id="content"></main>
     </div>
 
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div class="modal fade" id="modal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0">
+            <h1 id="modal-hdr" class="modal-title fs-5">Atenção</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p id="modal-txt"></p>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" id="confirm" class="btn btn-primary" data-bs-dismiss="modal">Sim</button>
+            <button type="button" id="cancel" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-4">
       <div id="toast" class="toast" role="alert">
         <div class="d-flex">
           <div class="toast-body">
@@ -152,8 +218,17 @@
         }
 
         if (page === 'add') {
-          try { AddView.init(LC, CACHE) } catch(e) { toast(e.message + e.stack) }
+          try { AddView.init(LC, CACHE) } catch(e) { toast(e) }
         }
+
+        if (page === 'account') {
+          try { AccountView.init() } catch(e) { toast(e) }
+        }
+      }
+
+      function refresh(page){
+        document.body.style.pointerEvents = 'none'
+        google.script.run.withSuccessHandler((url) => {window.location.href = url + `#${page}`}).getScriptUrl()
       }
 
       //
@@ -161,11 +236,41 @@
       //
 
       const textMsg = document.getElementById("toast")
-      const msg = new bootstrap.Toast(textMsg, {delay: 3000})
+      let msg = new bootstrap.Toast(textMsg, {autohide: true, delay: 3000})
 
-      function toast(text, cor = 'light') {
+      function toast(text, cor = 'warning') {
         textMsg.classList = `toast align-items-center border-0 text-bg-${cor}`
-        textMsg.querySelector('.toast-body').textContent = text
+        textMsg.querySelector('.toast-body').innerHTML = text
+        msg = bootstrap.Toast.getOrCreateInstance(textMsg, {autohide: true, delay: 3000})
+        msg.show()
+      }
+
+      const textModal = document.getElementById('modal-txt')
+      const modalEl = document.getElementById('modal')
+      const modal = new bootstrap.Modal(modalEl)
+      const confirmBtn = document.getElementById('confirm')
+      const cancelBtn = document.getElementById('cancel')
+
+      async function confirm(text){
+        textModal.textContent = text
+        return new Promise((resolve) => {
+          confirmBtn.onclick = () => resolve(true)
+          cancelBtn.onclick = () => resolve(false)
+
+          modalEl.addEventListener('hidden.bs.modal', () => resolve(false), { once: true })
+          modal.show()
+        })
+      }
+
+      function toastWait(text, cor = 'light'){
+        textMsg.classList = `toast align-items-center border-0 text-bg-${cor}`
+        textMsg.querySelector('.toast-body').innerHTML = `
+          <div class="d-flex align-items-center gap-2">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <span>${text}</span>
+          </div>
+        `
+        msg = bootstrap.Toast.getOrCreateInstance(textMsg, {autohide: false})
         msg.show()
       }
       
@@ -178,10 +283,9 @@
           this.config  = document.getElementById('config')
           this.periodo = document.getElementById('periodo')
 
-          this.addBtn  = document.getElementById('add')
-          this.editBtn = document.getElementById('edit')
-          this.delBtn  = document.getElementById('del')
-          this.msg     = document.getElementById('msg')
+          this.addBtn  = document.getElementById('add-btn')
+          this.editBtn = document.getElementById('edit-btn')
+          this.delBtn  = document.getElementById('del-btn')
         },
 
         bind() {
@@ -189,7 +293,7 @@
 
           this.lista.onchange = () => this.renderConfig()
 
-          this.addBtn.onclick  = () => this.adicionar()
+          this.addBtn.onclick  = () => location.hash = 'add'
           this.editBtn.onclick = () => this.editar()
           this.delBtn.onclick  = () => this.apagar()
         },
@@ -254,25 +358,25 @@
           this.renderLista(filtrados)
         },
 
-        adicionar() {
-          google.script.run.criarEvento(true)
-        },
-
         editar() {
           const ev = this.getSelecionado()
           if (!ev) return
           google.script.run._atualizarEvento(ev)
         },
 
-        apagar() {
+        async apagar() {
           const ev = this.getSelecionado()
           if (!ev) return
-          if (!confirm(`Apagar ${ev.titulo}?`)) return
+          if (!await confirm(`Apagar o evento ${ev.titulo}?`)) return
+
+          toastWait('Apagando evento...')
 
           google.script.run
+            .withFailureHandler(err => toast(err.message, 'danger'))
             .withSuccessHandler(() => {
               this.db.eventos = this.db.eventos.filter(e => e.id != ev.id)
               this.eventos = this.db.eventos.slice()
+              toast('Evento apagado', 'primary')
               this.renderLista()
             })
             ._deleteEvento(ev.id)
@@ -299,24 +403,30 @@
 
         getDOM() {
           this.titulo = document.getElementById('titulo')
-          this.periodo = document.getElementById('periodo')
+
           this.tipoBtn = document.getElementById('tipo-btn')
-          this.datasBtn = document.getElementById('datas-btn')
           this.tipo = document.getElementById('tipo')
+
+          this.inicio = document.getElementById('inicio')
+          this.reverseBtn = document.getElementById('rev-btn')
+          this.fim = document.getElementById('fim')
+          this.addBtn = document.getElementById('add-btn')
+          this.datasSelecionadas = document.getElementById('datasSelecionadas')
+
           this.buscaLocais = document.getElementById('busca-locais')
           this.listaLocais = document.getElementById('lista-locais')
           this.locaisSelecionados = document.getElementById('locaisSelecionados')
-          this.inicio = document.getElementById('inicio')
-          this.fim = document.getElementById('fim')
-          this.addBtn = document.getElementById('add-btn')
-          this.reverseBtn = document.getElementById('rev-btn')
-          this.datasSelecionadas = document.getElementById('datasSelecionadas')
+
+          this.obsInput = document.getElementById('obs')
+
+          this.submitBtn = document.getElementById('submit-btn')
         },
 
         bind() {
           this.buscaLocais.oninput = () => this.renderListaLocais(this.buscaLocais.value)
           this.addBtn.onclick = () => this.renderDatas()
           this.reverseBtn.onclick = () => this.reverseDates()
+          this.submitBtn.onclick = () => this.addEvent()
         },
 
         renderListaLocais(filtro = '') {
@@ -412,24 +522,28 @@
         },
 
         renderDatas() {
-          if(!this.inicio.dataset.date) return toast('Selecione uma data de início', 'danger')
-          if(!this.fim.dataset.date) return toast('Selecione uma data de fim', 'danger')
+          if(!this.inicio.dataset.date) return toast('Selecione uma data de início', 'warning')
+          if(!this.fim.dataset.date) return toast('Selecione uma data de fim', 'warning')
   
           const date = {inicio: new Date(this.inicio.dataset.date), fim: new Date(this.fim.dataset.date)}
           const intervalo = date.fim - date.inicio
 
-          const datas = [...datasSelecionadas.querySelectorAll('button')].map(d => JSON.parse(d.dataset.date))
-          
-          if(Math.abs(intervalo) < 60 * 60 * 1000) return toast('Escolha um intervalo de pelo menos 1 hora', 'danger')
           if(date.inicio > date.fim) {
-            toast('Data de início maior que fim, invertendo...', 'warning');
+            [date.inicio, date.fim] = [date.fim, date.inicio]
             this.reverseDates()
           }
+          
+          const datas = [...this.datasSelecionadas.querySelectorAll('button')].map(d => JSON.parse(d.dataset.date))
+          
+          if(Math.abs(intervalo) < 60 * 60 * 1000) return toast('Escolha um intervalo de pelo menos 1 hora', 'warning')
+
+          date.inicio = date.inicio.toISOString()
+          date.fim = date.fim.toISOString()
 
           const folga = 30
 
-          try{if(datas.some(d => this.isInside(date, d))) return toast('Essa data já foi escolhida', 'danger')
-          if(datas.some(d => this.isInside(date, d, folga))) return toast(`No mínimo ${folga} minutos de folga entre datas`, 'danger')
+          if(datas.some(d => this.isInside(date, d))) return toast('Essa data já foi escolhida', 'warning')
+          if(datas.some(d => this.isInside(date, d, folga))) return toast(`No mínimo ${folga} minutos de folga entre datas`, 'warning')
 
           const longo = intervalo >= 24 * 60 * 60 * 1000
           const shortFormat = this.inicio.textContent + ' até ' + this.fim.textContent.split(' às ')[1]
@@ -441,16 +555,24 @@
           btn.dataset.date = JSON.stringify(date)
           btn.classList.add('btn-' + (longo ? 'primary' : 'success'))
           btn.onclick = () => btn.remove()
-          this.datasSelecionadas.appendChild(btn)}catch(e){toast(e, 'danger')}
+          this.datasSelecionadas.appendChild(btn)
         },
 
         reverseDates(){
-          [this.inicio.innerHTML, this.fim.innerHTML] = [this.fim.innerHTML, this.inicio.innerHTML]
+          const inicioClone = this.inicio.cloneNode(true)
+          const fimClone = this.fim.cloneNode(true)
+
+          this.inicio.replaceWith(fimClone)
+          this.fim.replaceWith(inicioClone)
+
+          this.inicio = fimClone
+          this.fim = inicioClone
+
           if(this.inicio.textContent == 'Fim') this.inicio.textContent = 'Início'
           if(this.fim.textContent == 'Início') this.fim.textContent = 'Fim'
         },
 
-        renderTipos() {
+        renderTipos(){
           this.tipoSelecionado = null
           this.tipoBtn.textContent = 'Tipo'
 
@@ -475,7 +597,7 @@
                 if (c.startsWith('btn-')) this.tipoBtn.classList.remove(c)
               })
 
-              this.tipoBtn.classList.add('btn-' + cor)
+              this.tipoBtn.classList.add('btn-' + cor.button)
             }
 
             li.appendChild(a)
@@ -485,13 +607,231 @@
 
         isInside(x,y,folga = 0){
           folga *= 60 * 1000
-          return x.inicio.getTime() < (new Date(y.fim).getTime() + folga - 1000) && new Date(y.inicio).getTime() < (x.fim.getTime() - folga + 1000)
+          return new Date(x.inicio).getTime() < (new Date(y.fim).getTime() + folga - 1000) && new Date(y.inicio).getTime() < (new Date(x.fim).getTime() - folga + 1000)
+        },
+
+        getDates(){
+          return [...this.datasSelecionadas.querySelectorAll('button')]
+        },
+
+        addEvent(){
+          const titulo = this.titulo.value
+          if(!titulo || titulo.length <= 2) return toast('Escolha um título', 'warning')
+
+          const tipo = this.tipoBtn.textContent
+          if(tipo == 'Tipo') return toast('Escolha um tipo', 'warning')
+
+          let buttons = this.getDates()
+
+          if(!buttons || buttons.length == 0){
+            this.renderDatas()
+            buttons = this.getDates()
+            if(!buttons || buttons.length == 0) return
+          }
+
+          const datas = buttons.map(d => JSON.parse(d.dataset.date))
+
+          const locais = this.locaisSel
+          if(!locais || locais.length == 0) return toast('Escolha ao menos um local', 'warning')
+
+          const obs = this.obsInput.value
+
+          const evento = {titulo, tipo, datas, locais, obs}
+
+          disable(this.submitBtn)
+
+          toastWait("Adicionando evento...")
+
+          google.script.run.withFailureHandler(err => {
+            try{
+              err = JSON.parse(err.message || err)
+              this.showError(err.locais)
+              toast(err.message, 'danger')
+            }
+            catch(e){
+              toast(err.message, 'danger')
+            }
+            enable(this.submitBtn)
+          }).withSuccessHandler(() => {
+            toast('Adicionado', 'primary')
+            refresh('add')
+          })._addEvento(evento)
         }
       }
 
+      const PassView = {
+        init(tpl){
+          this.getDOM(tpl)
+          this.bind()
+        },
+
+        getDOM(tpl){
+          this.inputs = tpl.querySelectorAll('.pass-input')
+        },
+
+        bind(){
+          this.inputs.forEach(d => {
+            const input = d.querySelector('.form-control')
+            const btn = d.querySelector('.btn')
+            const eye = btn.querySelector('.bi-eye-fill')
+
+            btn.tabIndex = -1
+            btn.onclick = () => {
+              const hidden = input.type == 'password'
+              input.type = hidden ? 'text' : 'password'
+            
+              eye.classList.toggle('bi-eye-fill');
+              eye.classList.toggle('bi-eye-slash-fill');
+            }
+          })
+        }
+      }
+
+      const AccountView = {
+
+        init(){
+          this.getDOM()
+          this.bind()
+          this.loadTpl('pass-tpl')
+        },
+
+        getDOM(){
+          this.passSlot = document.getElementById('pass-slot')
+        },
+
+        bind(){
+        },
+
+        loadTpl(name){
+          const tpl = document.getElementById(name).content
+          this.passSlot.innerHTML = ''
+          this.passSlot.appendChild(tpl.cloneNode(true))
+          PassView.init(this.passSlot)
+        },
+      }
+
+      const LoginView = {
+
+        init() {
+          this.getDOM()
+          this.bind()
+          PassView.init(document.body)
+          this.modal = new bootstrap.Modal(document.getElementById('modal-login'), {
+            backdrop: 'static',
+            keyboard: false
+          })
+          this.modal.show()
+        },
+
+        getDOM() {
+          this.user = document.getElementById('login-user')
+          this.pass = document.getElementById('login-pass')
+          this.err = document.getElementById('login-err')
+          this.loginBtn = document.getElementById('login-btn')
+          this.registerBtn = document.getElementById('register-btn')
+
+          this.painelLogin = document.getElementById('painel-login')
+          this.painelRegister = document.getElementById('painel-register')
+          this.regNome = document.getElementById('reg-nome')
+          this.regSetor = document.getElementById('reg-setor')
+          this.regEmail = document.getElementById('reg-email')
+          this.regPass = document.getElementById('reg-pass')
+          this.regErr = document.getElementById('register-err')
+          this.regBtn = document.getElementById('register-submit-btn')
+          this.backBtn = document.getElementById('back-btn')
+        },
+
+        bind() {
+          this.loginBtn.onclick = () => this.login()
+          this.registerBtn.onclick = () => this.register()
+          this.backBtn.onclick = () => this.back()
+          this.regBtn.onclick = () => this.submitRegister()
+
+          ;[this.user, this.pass].forEach(input => {
+            input.addEventListener('keydown', e => {
+              if (e.key === 'Enter') this.login()
+            })
+          })
+        },
+
+        setErr(msg) {
+          this.err.textContent = msg
+          this.err.classList.toggle('d-none', !msg)
+        },
+
+        login() {
+          const user = this.user.value.trim()
+          const pass = this.pass.value
+
+          if (!user || !pass) return this.setErr('Preencha todos os campos')
+          this.setErr('')
+
+          disable(this.loginBtn)
+          toastWait('Entrando...')
+
+          google.script.run
+            .withFailureHandler(err => {
+              toast(err.message, 'danger')
+              enable(this.loginBtn)
+            })
+            .withSuccessHandler(result => {
+              if (!result) {
+                this.setErr('Usuário ou senha incorretos')
+                enable(this.loginBtn)
+                return
+              }
+              this.modal.hide()
+              document.body.classList.remove('view-login')
+              msg.hide()
+              go(location.hash.slice(1) || 'add')
+            })
+            .login(user, pass)
+        },
+
+        register() {
+          this.painelLogin.classList.add('d-none')
+          this.painelRegister.classList.remove('d-none')
+          PassView.init(this.painelRegister)  // inicializa o olho do registro
+        },
+
+        back() {
+          this.painelRegister.classList.add('d-none')
+          this.painelLogin.classList.remove('d-none')
+        },
+
+        submitRegister() {
+          const nome  = this.regNome.value.trim()
+          const setor = this.regSetor.value.trim()
+          const email = this.regEmail.value.trim()
+          const pass  = this.regPass.value
+
+          if (!nome || !setor || !email || !pass)
+            return this.regErr.textContent = 'Preencha todos os campos', this.regErr.classList.remove('d-none')
+
+          this.regErr.classList.add('d-none')
+          disable(this.regBtn)
+          toastWait('Registrando...')
+
+          google.script.run
+            .withFailureHandler(err => {
+              this.regErr.textContent = err.message
+              this.regErr.classList.remove('d-none')
+              enable(this.regBtn)
+            })
+            .withSuccessHandler(() => {
+              this.back()
+              toast('Conta criada! Aguarde aprovação.', 'success')
+            })
+            .register({nome, setor, email, pass})
+        },
+      }
+
       document.addEventListener('DOMContentLoaded', () => {
-        try{go('add')}catch(e){toast(e.message)}
+        const loginTpl = document.getElementById('view-login')
+        document.body.appendChild(loginTpl.content.cloneNode(true))
+        LoginView.init()
       })
+
     </script>
   </body>
 </html>

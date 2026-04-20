@@ -7,7 +7,7 @@ class Locais{
     const props = PropertiesService.getScriptProperties()
     const json = props.getProperty(this.KEY)
 
-    if (!json || json === []) {
+    if (!json) {
       const inicial = { setores: [] }
       props.setProperty(this.KEY, JSON.stringify(inicial))
       return inicial;
@@ -52,9 +52,16 @@ class Locais{
     if (setor.quadras.some(q => q.nome === nome))
       throw new Error(`Quadra '${nome}'já existe`)
 
-    const id = setor.id + '.' + setor.quadras.map(q => q.id).sort((a, b) => b - a)[0] + 1 || 1
+    const id = setor.id + '.' + setor.quadras.map(q => Number(q.id.split('.')[1])).sort((a, b) => b - a)[0] + 1 || 1
 
-    setor.quadras.push({id, nome, eventos: [], tipo: 'quadra', ativo: true})
+    setor.quadras.push({
+      id,
+      nome,
+      eventos: [],
+      ativo: true,
+      tipo: 'quadra',
+      setor: setor.nome
+    })
 
     this._saveDB(db)
   }
@@ -74,15 +81,22 @@ class Locais{
 
     const db = this.getDB()
 
-    locais.forEach(local => this.busca(local.id).eventos.push(id))
+    locais.forEach(local => {
+      const l = this.busca(local.id)
+      if(!l.eventos.includes(id)){
+        l.eventos.push(id)
+      }
+    })
     
     this._saveDB(db)
   }
 
   static apagarEvento(id, local){
+
     const db = this.getDB()
+
     local = this.busca(local)
-    if (!local) throw new Error(`Local não encontrado: ID ${localID}`)
+    if (!local) throw new Error(`Local não encontrado: ID ${local}`)
 
     local.eventos = local.eventos.filter(e => e != id)
 
@@ -119,19 +133,24 @@ class Eventos{
 
   static getDB() {
 
-    // if(this._cache) return this._cache
+    if(this._cache) return this._cache
 
     const props = PropertiesService.getScriptProperties()
     const json = props.getProperty(this.KEY)
 
     if (!json) {
-      const inicial = { eventos: [] }
+      const inicial = { eventos: [], fixos: [] }
       props.setProperty(this.KEY, JSON.stringify(inicial))
       this._cache = inicial
       return inicial;
     }
 
     this._cache = JSON.parse(json)
+
+    if(!this._cache.fixos){
+      this._cache.fixos = []
+    }
+    
     return this._cache
   }
 
@@ -151,30 +170,39 @@ class Eventos{
 
   static criarEvento(evento){
 
-    const {titulo, locais, inicio, fim, tipo} = evento
+    let {titulo, locais, datas, tipo} = evento
 
-    const horario = [inicio, fim]
-
-    this._isConflited(horario, locais)
+    this._isConflited(datas, locais)
 
     const db = this.getDB()
 
     evento.id = db.eventos.map(e => e.id).sort((a, b) => b - a)[0] + 1 || 1
+    
+    datas = datas.map(data => {
 
-    const serverEvento = {
-      summary: titulo,
-      start: {dateTime: inicio},
-      end: {dateTime: fim},
-      location: locais.map(l => l.nome),
-      color: colorsCalendar[tipo],
-      description: this._getDescription(evento.obs),
-      extendedProperties: {private: {
-        planilhaID: evento.id,
-        tipo
-      }}
-    }
+      const {inicio, fim} = data
 
-    evento.serverID = Calendar.Events.insert(serverEvento, idAgenda).id
+      const serverEvento = {
+        summary: titulo,
+        start: {dateTime: inicio},
+        end: {dateTime: fim},
+        location: locais.map(l => l.tipo == 'setor' ? l.nome : l.setor + ' - ' + l.nome),
+        colorId: cores[tipo].calendar,
+        description: evento.obs,
+        extendedProperties: {private: {
+          planilhaID: evento.id,
+          tipo
+        }}
+      }
+
+      const serverID = Calendar.Events.insert(serverEvento, idAgenda).id
+
+      data = {inicio, fim, serverID}
+
+      return data
+    })
+
+    evento.datas = datas
 
     evento.locais = locais.map(l => l.id)
 
@@ -183,46 +211,68 @@ class Eventos{
     Locais.adicionarEvento(evento.id, locais)
 
     this._saveDB(db)
+
+    //_sendEmail("Novo evento", "Atenção - Evento criado", evento)
     
     return evento.id
   }
 
   static editarEvento(evento){
 
-    const {titulo, locais, inicio, fim, tipo, id} = evento
+    let {titulo, locais, datas, tipo, id} = evento
 
-    const horario = [inicio, fim]
-
-    this._isConflited(horario, locais, id)
+    this._isConflited(datas, locais, id)
 
     const db = this.getDB()
     
     const original = this.busca(id)
 
+    const idsOriginais = original.datas.map(d => d.serverID)
+    const ids = datas.map(d => d.serverID)
+    idsOriginais.forEach(id => {
+      if(!ids.includes(id)){
+        Calendar.Events.remove(idAgenda, id)
+      }
+    })
+
     original.locais.forEach(l => Locais.apagarEvento(original.id, l))
 
     Locais.adicionarEvento(id, locais)
     
-    const serverEvento = {
-      summary: titulo,
-      start: {dateTime: inicio},
-      end: {dateTime: fim},
-      location: locais.map(l => l.nome),
-      color: colorsCalendar[tipo],
-      description: this._getDescription(evento.obs),
-      extendedProperties: {private: {
-        planilhaID: evento.id,
-        tipo
-      }}
-    }
+    datas = datas.map(data => {
 
-    Calendar.Events.patch(serverEvento, idAgenda, evento.serverID)
+      let {inicio, fim, serverID} = data
+
+      const serverEvento = {
+        summary: titulo,
+        start: {dateTime: inicio},
+        end: {dateTime: fim},
+        location: locais.map(l => l.tipo == 'setor' ? l.nome : l.setor + ' - ' + l.nome),
+        colorId: cores[tipo].calendar,
+        description: evento.obs,
+        extendedProperties: {private: {
+          planilhaID: evento.id,
+          tipo
+        }}
+      }
+
+      if(!serverID) serverID = Calendar.Events.insert(serverEvento, idAgenda).id
+      else Calendar.Events.patch(serverEvento, idAgenda, serverID)
+
+      data = {inicio, fim, serverID}
+
+      return data
+    })
+
+    evento.datas = datas
 
     evento.locais = locais.map(l => l.id)
 
     db.eventos = [...db.eventos.filter(e => e.id != id), evento]
 
     this._saveDB(db)
+
+    //_sendEmail("Evento alterado", "Atenção - Evento alterado", evento)
   }
 
   static apagarEvento(id){
@@ -231,28 +281,28 @@ class Eventos{
 
     dados.locais.forEach(l => Locais.apagarEvento(id, l))
 
-    Calendar.Events.remove(idAgenda, dados.serverID)
+    for(let data of dados.datas){
+      try{Calendar.Events.remove(idAgenda, data.serverID)} catch{}
+    }
 
-    let db = this.getDB()
+    const db = this.getDB()
 
     db.eventos = db.eventos.filter(e => e.id != id)
 
     this._saveDB(db)
-
-    return dados
   }
 
-  static deleteDB(){
-    PropertiesService.getScriptProperties().deleteProperty(this.KEY)
-    this._cache = null
-  }
-
-  static _isConflited(horario, locais, id = ''){
+  static _isConflited(datas, locais, id = '', debug = false){
 
     const conflito = eventoId => {
       if(eventoId == id) return false
+
       const evento = this.busca(eventoId)
-      return evento && _isInside([evento.inicio, evento.fim],horario)
+      if(!evento) return false
+
+      return evento.datas.some(d1 => datas.some(d2 => _isInside(d1, d2)
+        )
+      )
     }
 
     locais.forEach(local => {
@@ -260,7 +310,7 @@ class Eventos{
       let quadraOcupada
       let setor
 
-      local = Locais.busca(local.id)
+      local = Locais.busca(debug ? local : local.id)
 
       if(local.tipo == 'quadra'){
         setor = Locais.busca(local.id.split('.')[0])
@@ -276,8 +326,14 @@ class Eventos{
 
       if(setorOcupado){
         const evento = this.busca(setorOcupado)
-        const [inicio, fim] = [evento.inicio, evento.fim].map(e => new Date(e))
-        throw JSON.stringify({locais: [setor], message: `O setor '${setor.nome}' está reservado nesse horário:\n${evento.titulo} - ${inicio.datahora()} até ${fim.datahora()}`})
+
+        const data = evento.datas.find(d1 => datas.some(d2 => _isInside(d1, d2)))
+
+        const [inicio, fim] = [data.inicio, data.fim].map(e => new Date(e))
+        
+        if(debug) Logger.log(`${id} - O setor '${setor.nome}' está reservado nesse horário:\n${evento.titulo} - ${inicio.datahora()} até ${fim.datahora()}`)
+        
+        else throw JSON.stringify({locais: [setor], message: `O setor '${setor.nome}' está reservado nesse horário:\n${evento.titulo} - ${inicio.datahora()} até ${fim.datahora()}`})
       }
 
       else if(quadraOcupada) {
@@ -286,21 +342,21 @@ class Eventos{
 
         const quadras = evento.locais
 
+        // debug(local.id + ' ' + evento.locais)
+
         if(local.tipo == 'setor'){
-          local = evento.locais.find(l => l.id.startsWith(local.id))
+          local = Locais.busca(evento.locais.find(l => l.split('.')[0] == local.id))
         }
 
-        const [inicio, fim] = [evento.inicio, evento.fim].map(e => new Date(e))
-        throw JSON.stringify({locais: quadras, message: `Existe um evento marcado em '${local.setor} - ${local.nome}' nesse horário:\n${evento.titulo} - ${inicio.data()} às ${inicio.hora()} até ${fim.data()} às ${fim.hora()}`})
+        const data = evento.datas.find(d1 => datas.some(d2 => _isInside(d1, d2)))
+
+        const [inicio, fim] = [data.inicio, data.fim].map(e => new Date(e))
+
+        if(debug) Logger.log(`${id} - Existe um evento marcado em '${local.setor} - ${local.nome}' nesse horário:\n${evento.titulo} - ${inicio.data()} às ${inicio.hora()} até ${fim.data()} às ${fim.hora()}`)
+
+        else throw JSON.stringify({locais: quadras, message: `Existe um evento marcado em '${local.setor} - ${local.nome}' nesse horário:\n${evento.titulo} - ${inicio.data()} às ${inicio.hora()} até ${fim.data()} às ${fim.hora()}`})
       }
     })
-  }
-
-  static _getDescription(id){
-    if(!id) return
-    const url = id.match(/\/d\/([a-zA-Z0-9\-_]+)/)
-    if(!url) return
-    return DocumentApp.openById(url[1]).getBody().getText()
   }
 }
 
@@ -312,15 +368,25 @@ Eventos._cache = null
 
 Date.prototype.data = function(){
   return this.toLocaleDateString('pt-BR', {
-  month: 'numeric',
-  day: 'numeric'
+    month: 'numeric',
+    day: 'numeric'
   })
 }
 
 Date.prototype.hora = function(){
   return this.toLocaleTimeString('pt-BR', {
-  hour: '2-digit',
-  minute: '2-digit'})
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+Date.prototype.datahora = function(){
+  return this.toLocaleDateString('pt-BR', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 Date.prototype.mes = function(){
@@ -328,11 +394,6 @@ Date.prototype.mes = function(){
   return m.charAt(0).toLocaleUpperCase() + m.slice(1)
 }
 
-Date.prototype.datahora = function(){
-    return this.toLocaleDateString('pt-BR', {
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+Date.prototype.dia = function(){
+  return _capital(this.toLocaleDateString('pt-br', {weekday: 'long'}))
 }

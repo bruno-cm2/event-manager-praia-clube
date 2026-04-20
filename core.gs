@@ -1,16 +1,20 @@
 function _saveDB(DB){
-  Locais.saveDB(DB)
+  Locais._saveDB(DB)
 }
 
-function loadView(name){
-  return HtmlService.createHtmlOutputFromFile(name).getContent()
+function login(user, pass){
+  return true
 }
 
-function _addEvento(evento){
+function register(user){
+  return true
+}
+
+function addEvento(evento){
 
   const {titulo, datas, tipo, locais, obs} = evento
 
-  const planilha = SpreadsheetApp.getActive().getSheetByName("Eventos")
+  const planilha = SpreadsheetApp.openById(idPlanilha).getSheetByName("Eventos")
 
   if(!evento.id) evento.id = Eventos.criarEvento(evento)
   else{
@@ -39,53 +43,56 @@ function _addEvento(evento){
   }
 }
 
-function _updateSheet(mes, infoEvento, tipo, id = null){
 
-  const planilha = SpreadsheetApp.getActive().getSheetByName("Eventos")
+function updateSheet(planilha, meses, infoEvento, tipo){
 
   const namedRanges = planilha.getNamedRanges()
 
-  const range = namedRanges.find(r => r.getName() == mes).getRange()                              // Procurando mês
-  const header = range.offset(0,0,1,1)                                                            // Cabeçalho
-  
-  let linha
+  for(let mes of meses){
 
-  if(id){
-    linha = range.offset(0,0,500,1).createTextFinder(String(id)).matchEntireCell(true).findNext().offset(0,0,1,infoEvento.length)
-  } 
+    const namedRange = namedRanges.find(r => r.getName() == mes)
+    const range = namedRange.getRange()                                                  // Procurando mês
+    const header = range.offset(0,0,1,1)                                                 // Cabeçalho
 
-  else{
-    const indexLinha = range.offset(1,0,500,1).getValues().findIndex(r => String(r[0]) == '') +1  // Última linha preenchida +1
-    linha = range.offset(indexLinha,0,1,infoEvento.length)                                                      
-  }
+    let datas = range.offset(2,3,range.getNumRows()-2,1).getValues().map(v => v[0]).filter(d => d).map(d => new Date(d))
 
-  // Inserindo evento e formatando a linha
-  linha.setValues([infoEvento])
+    const dia = new Date(infoEvento[3])
 
-  if(!id){ 
+    const index = datas.findIndex(d => dia < d)
+    const pos = index === -1 ? datas.length : index
+
+    const linha = range.offset(pos + 2, 0, 1, infoEvento.length)
+
+    // Inserindo evento e formatando a linha
+    linha.insertCells(SpreadsheetApp.Dimension.ROWS)
+    linha.setValues([infoEvento])
     linha.setBorder(true,true,true,true,true,true,header.getBackground(), SpreadsheetApp.BorderStyle.SOLID)
-    linha.setFontFamily('Arial').setFontSize(9).setFontWeight('bold').setVerticalAlignment('middle').setHorizontalAlignment('center').setFontColor(colors[tipo]).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP)
+    linha.setFontFamily('Arial').setFontSize(9).setFontWeight('bold').setVerticalAlignment('middle').setHorizontalAlignment('center').setFontColor(cores[tipo].sheet).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP)
   }
 }
 
 
 function _deleteEvento(id){
 
-  const planilha = SpreadsheetApp.getActive().getSheetByName("Eventos")
+  const planilha = SpreadsheetApp.openById(idPlanilha).getSheetByName("Eventos")
+  
+  Eventos.apagarEvento(id)
 
-  const dados = Eventos.apagarEvento(id)
+  const ranges = planilha.createTextFinder(id).matchEntireCell(true).findAll().map(r => r.offset(0,0,1,8))
 
-  mes = new Date(dados.inicio).mes().toLocaleUpperCase()
-
-  const range = planilha.getNamedRanges().find(r => r.getName().toLocaleUpperCase() == mes).getRange()
-  const linha = range.offset(range.getValues().findIndex(r => r[0] == id),0,1,8)
-
-  linha.deleteCells(SpreadsheetApp.Dimension.ROWS)
+  ranges.sort((a, b) => b.getRow() - a.getRow()).forEach(r => r.deleteCells(SpreadsheetApp.Dimension.ROWS))
 }
+
 
 function _saveCache(key,cache){
   PropertiesService.getUserProperties().setProperty(key, JSON.stringify(cache));
 }
+
+
+function _include(file){
+  return HtmlService.createHtmlOutputFromFile(file).getContent()
+}
+
 
 function _ui(mensagem, buttons = 'YES_NO'){
   const ui = SpreadsheetApp.getUi()
@@ -97,18 +104,42 @@ function _ui(mensagem, buttons = 'YES_NO'){
   return resposta === ui.Button.YES || resposta === ui.Button.OK
 }
 
+
 function debug(msg){
   if(typeof msg == 'object') msg = JSON.stringify(msg)
   throw new Error(msg)
 }
 
-function _isInside(x,y){
-    x = x.map(i => new Date(i))
-    y = y.map(i => new Date(i))
-    return x[0] <= y[1] && y[0] <= x[1]
-}
 
-function capital(str){
+function _isInside(x,y){
+    [x,y] = [x,y].map(i => ({inicio: new Date(i.inicio), fim: new Date(i.fim)}))
+    return x.inicio <= y.fim && y.inicio <= x.fim
+  }
+
+
+function _capital(str){
   str = String(str)
   return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
+
+function _sendEmail(subject, texto, evento){
+  let locais = evento.locais.map(l => Locais.busca(l))
+  locais = locais.map(l => l.tipo == 'setor' ? l.nome : l.setor + ' - ' + l.nome)
+  if(evento.titulo.includes("Teste") || evento.titulo.includes("teste")) return
+  MailApp.sendEmail({
+    to: emails.join(','),
+    subject,
+    htmlBody: `
+      ${texto}:<br><br>
+      <b>${evento.titulo}</b><br>
+      ${evento.datas.map(d => `${new Date(d.inicio).datahora()} às ${_dayLong(d) ? new Date(d.fim).datahora() : new Date(d.fim).hora()}`).join('<br>•')}<br>
+      Locais: ${locais.join(', ')}<br>
+      Criado por: ${evento.criador || 'N/A'}`,
+    name:'Agenda de eventos'
+  })
+}
+
+function _dayLong(dateISO){
+  return new Date(dateISO.fim) - new Date(dateISO.inicio) >= 86400000 
 }

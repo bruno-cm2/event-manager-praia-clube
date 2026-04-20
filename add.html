@@ -12,38 +12,27 @@
   }
 
   .bi-underline {
-    display: inline-block;
     border-bottom: 1.5px solid currentColor;
-    padding-bottom: 0;
-    line-height: 1;
+    line-height: 1;    
     font-size: 1.4rem;
-  }
-
-  .btn-outline-secondary{
-    --bs-btn-border-color: #ced4da;
-  }
-  
-  button .bi{
-    margin-right: unset !important;
   }
 
 </style>
 
-<div class="d-flex flex-column gap-4 m-3 mt-2">
+<div class="col">
 
   <!-- HEADER -->
-  <div class="d-flex align-items-center border-bottom pb-1 mb-2">
+  <div class="header d-flex align-items-center border-bottom pb-1  mb-4">
     <i class="bi bi-pencil-fill text-primary bi-underline"></i>
-    <h2 style="position: relative; top: 3px">Criar Evento</h2>
-  </div>
-  
-  <!-- TÍTULO -->
-  <div class="d-flex col-7">    
-    <input id="titulo" class="form-control" placeholder="Título">
+    <h2>Criar Evento</h2>
   </div>
 
-  <!-- DATA E TIPO-->
-  <div class="d-flex gap-1 col-7">    
+  <div class="col-7 d-flex flex-column gap-4">
+    
+    <!-- TÍTULO -->   
+    <input id="titulo" class="form-control" placeholder="Título">
+
+    <!-- DATA E TIPO-->
     <div class="col">
       <div class="row g-2">
 
@@ -53,7 +42,7 @@
             <button id="tipo-btn" class="btn btn-outline-secondary w-100 text-start dropdown-toggle" data-bs-toggle="dropdown">
               Tipo
             </button>
-            <ul id="tipo" class="dropdown-menu py-1" style="width: calc(100% + 2px)"></ul>
+            <ul id="tipo" class="dropdown-menu py-1"></ul>
           </div>
         </div>
 
@@ -79,44 +68,44 @@
       </div>
 
       <!-- datas selecionadas -->
-      <div id="datasSelecionadas" class="d-flex flex-wrap gap-1"></div>
+      <div id="datasSelecionadas" class="d-flex flex-wrap gap-2"></div>
 
     </div>
-  </div>
 
-  <!-- LOCAIS -->
-  <div class="d-flex gap-1 col-7">  
-    <div class="col">
+    <!-- LOCAIS -->
+    <div class="d-flex">  
+      <div class="col">
 
-      <div class="dropdown w-100">
-        <button class="btn btn-outline-secondary w-100 text-start dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-          Selecionar locais
-        </button>
-        <div class="dropdown-menu px-2 shadow-sm w-100">
+        <div class="dropdown w-100">
+          <button class="btn btn-outline-secondary w-100 text-start dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            Selecionar locais
+          </button>
+          <div class="dropdown-menu px-2 shadow-sm w-100">
 
-          <!-- busca -->
-          <input id="busca-locais" class="form-control mb-2" placeholder="Buscar setor ou quadra">
-          
-          <!-- lista dinâmica -->
-          <div id="lista-locais" style="overflow:auto; max-height: 220px"></div>
+            <!-- busca -->
+            <input id="busca-locais" class="form-control mb-2" placeholder="Buscar setor ou quadra">
+            
+            <!-- lista dinâmica -->
+            <div id="lista-locais" style="overflow:auto; max-height: 220px"></div>
+          </div>
         </div>
+
+        <!-- selecionados (cresce verticalmente) -->
+        <div id="locaisSelecionados" class="d-flex flex-wrap gap-1"></div>
+
       </div>
-
-      <!-- selecionados (cresce verticalmente) -->
-      <div id="locaisSelecionados" class="d-flex flex-wrap gap-1"></div>
-
     </div>
-  </div>
 
-  <!-- DESCRIÇÃO -->
-  <div class="d-flex gap-1 col-7">
-    <div class="col">
-      <textarea id="obs" class="form-control" placeholder="Descrição" rows="5"></textarea>
+    <!-- DESCRIÇÃO -->
+    <div class="d-flex">
+      <div class="col">
+        <textarea id="obs" class="form-control" placeholder="Descrição" rows="4"></textarea>
+      </div>
     </div>
-  </div>
 
-  <!-- AÇÕES -->
-  <div class="d-flex justify-content-end gap-2 col-7">
-    <button id="btn-add" class="btn btn-outline-secondary rounded" type="submit">Adicionar</button>
+    <!-- AÇÕES -->
+    <div class="d-flex justify-content-end">
+      <button id="submit-btn" class="btn btn-outline-secondary rounded" type="submit">Adicionar</button>
+    </div>
   </div>
 </div>
