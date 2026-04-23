@@ -11,101 +11,86 @@
     margin-left: 0 !important;
   }
 
-  .bi-underline {
-    border-bottom: 1.5px solid currentColor;
-    line-height: 1;    
-    font-size: 1.4rem;
-  }
-
 </style>
 
-<div class="col">
+<div class="d-flex flex-column gap-4">
+  
+  <!-- TÍTULO -->   
+  <input id="titulo" class="form-control" placeholder="Título">
 
-  <!-- HEADER -->
-  <div class="header d-flex align-items-center border-bottom pb-1  mb-4">
-    <i class="bi bi-pencil-fill text-primary bi-underline"></i>
-    <h2>Criar Evento</h2>
+  <!-- DATA E TIPO-->
+  <div class="col">
+    <div class="row g-2">
+
+      <!-- tipo -->
+      <div class="col-4">
+        <div class="dropdown w-100">
+          <button id="tipo-btn" class="btn btn-outline-secondary w-100 text-start dropdown-toggle" data-bs-toggle="dropdown">
+            Tipo
+          </button>
+          <ul id="tipo" class="dropdown-menu py-1"></ul>
+        </div>
+      </div>
+
+      <!-- datas -->
+      <div class="col-8">
+        <div class="input-group dropdown">
+          <button id="inicio" class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start border-end-0" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-offset="-75%,0">Início</button >
+          <div class="dropdown-menu shadow-sm p-0">
+            <div id="calendario-inicio"></div>
+          </div>
+          <button id="rev-btn" class="btn btn-light btn-outline-secondary">
+            <i class="bi bi-arrow-left-right flex-grow-0"></i>
+          </button>
+          <button id="fim" class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start  border-start-0 border-end-0" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-offset="-75%,0">Fim</button>
+          <div class="dropdown-menu shadow-sm p-0">
+            <div id="calendario-fim"></div>
+          </div>
+          <button id="add-btn" class="btn btn-light btn-outline-secondary">
+            <i class="bi bi-plus-lg flex-grow-0"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- datas selecionadas -->
+    <div id="datasSelecionadas" class="d-flex flex-wrap gap-2"></div>
+
   </div>
 
-  <div class="col-7 d-flex flex-column gap-4">
-    
-    <!-- TÍTULO -->   
-    <input id="titulo" class="form-control" placeholder="Título">
-
-    <!-- DATA E TIPO-->
+  <!-- LOCAIS -->
+  <div class="d-flex">  
     <div class="col">
-      <div class="row g-2">
 
-        <!-- tipo -->
-        <div class="col-4">
-          <div class="dropdown w-100">
-            <button id="tipo-btn" class="btn btn-outline-secondary w-100 text-start dropdown-toggle" data-bs-toggle="dropdown">
-              Tipo
-            </button>
-            <ul id="tipo" class="dropdown-menu py-1"></ul>
-          </div>
-        </div>
+      <div class="dropdown w-100">
+        <button class="btn btn-outline-secondary w-100 text-start dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+          Selecionar locais
+        </button>
+        <div class="dropdown-menu px-2 shadow-sm w-100">
 
-        <!-- datas -->
-        <div class="col-8">
-          <div class="input-group dropdown">
-            <button id="inicio" class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-offset="-75%,0">Início</button >
-            <div class="dropdown-menu shadow-sm p-0">
-              <div id="calendario-inicio"></div>
-            </div>
-            <button id="rev-btn" class="btn btn-light btn-outline-secondary">
-              <i class="bi bi-arrow-left-right flex-grow-0"></i>
-            </button>
-            <button id="fim" class="btn btn-outline-secondary dropdown-toggle flex-grow-1 text-start" style="width: 0" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-offset="-75%,0">Fim</button>
-            <div class="dropdown-menu shadow-sm p-0">
-              <div id="calendario-fim"></div>
-            </div>
-            <button id="add-btn" class="btn btn-light btn-outline-secondary">
-              <i class="bi bi-plus-lg flex-grow-0"></i>
-            </button>
-          </div>
+          <!-- busca -->
+          <input id="busca-locais" class="form-control mb-2" placeholder="Buscar setor ou quadra">
+          
+          <!-- lista dinâmica -->
+          <div id="lista-locais" style="overflow:auto; max-height: 220px"></div>
         </div>
       </div>
 
-      <!-- datas selecionadas -->
-      <div id="datasSelecionadas" class="d-flex flex-wrap gap-2"></div>
+      <!-- selecionados (cresce verticalmente) -->
+      <div id="locaisSelecionados" class="d-flex flex-wrap gap-1"></div>
 
     </div>
+  </div>
 
-    <!-- LOCAIS -->
-    <div class="d-flex">  
-      <div class="col">
-
-        <div class="dropdown w-100">
-          <button class="btn btn-outline-secondary w-100 text-start dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-            Selecionar locais
-          </button>
-          <div class="dropdown-menu px-2 shadow-sm w-100">
-
-            <!-- busca -->
-            <input id="busca-locais" class="form-control mb-2" placeholder="Buscar setor ou quadra">
-            
-            <!-- lista dinâmica -->
-            <div id="lista-locais" style="overflow:auto; max-height: 220px"></div>
-          </div>
-        </div>
-
-        <!-- selecionados (cresce verticalmente) -->
-        <div id="locaisSelecionados" class="d-flex flex-wrap gap-1"></div>
-
-      </div>
+  <!-- DESCRIÇÃO -->
+  <div class="d-flex">
+    <div class="col">
+      <textarea id="obs" class="form-control" placeholder="Descrição" rows="4"></textarea>
     </div>
+  </div>
 
-    <!-- DESCRIÇÃO -->
-    <div class="d-flex">
-      <div class="col">
-        <textarea id="obs" class="form-control" placeholder="Descrição" rows="4"></textarea>
-      </div>
-    </div>
-
-    <!-- AÇÕES -->
-    <div class="d-flex justify-content-end">
-      <button id="submit-btn" class="btn btn-outline-secondary rounded" type="submit">Adicionar</button>
-    </div>
+  <!-- AÇÕES -->
+  <div class="d-flex justify-content-end">
+    <button id="submit-btn" class="btn btn-outline-secondary rounded" type="submit">Adicionar</button>
   </div>
 </div>

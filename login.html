@@ -1,8 +1,8 @@
-<div class="modal fade" id="modal-login" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+<div class="modal fade overflow-hidden" id="modal-login" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content shadow">
 
-      <div class="modal-header border-0 justify-content-center pt-4 mb-2">
+      <div class="modal-header border-0 justify-content-center pt-4 mb-1">
         <img src="https://x1futsal.com.br/wp-content/uploads/2021/04/Escudo-Completo-Praia-Clube.png" class="img-fluid w-25">
       </div>
 
@@ -16,43 +16,46 @@
               <span class="input-group-text">@praiaclube.org.br</span>
             </div>
           </div>
-          <div class="mb-3">
+          <div class="mb-2">
             <label class="form-label">Senha</label>
             <div class="input-group pass-input">
               <input type="password" id="login-pass" class="form-control" placeholder=" ">
-              <button class="btn btn-light btn-outline-secondary" tabindex="-1">
+              <button class="btn btn-light btn-outline-secondary border-start-0" tabindex="-1">
                 <i class="bi bi-eye-fill"></i>
               </button>
             </div>
+          <div id="login-err" class="text-danger small d-none mt-1"></div>
           </div>
-          <div id="login-err" class="text-danger small d-none"></div>
         </div>
-        <div class="modal-footer border-0 flex-column px-4 pb-4 gap-2">
-          <button class="btn btn-primary w-100" id="login-btn">Entrar</button>
-          <button class="btn btn-link w-100 text-decoration-none" id="register-btn">Criar conta</button>
+        <div class="modal-footer border-0 flex-column px-4 pb-3 gap-2">
+          <button class="btn btn-primary w-100 ms-0" id="login-btn">Entrar</button>
+          <button class="btn btn-link w-100 text-decoration-none ms-0" id="register-btn">Criar conta</button>
         </div>
       </div>
 
       <!-- REGISTRO -->
       <div id="painel-register" class="d-none">
-        <div class="modal-body px-4 d-flex flex-column gap-4">
-          <input type="text" id="reg-nome" class="form-control" placeholder="Nome">
-          <input type="text" id="reg-setor" class="form-control" placeholder="Setor">
-          <div class="input-group">
+        <div class="modal-body px-4 d-flex flex-column">
+          <div class="mb-3 d-flex gap-3">
+            <input type="text" id="reg-nome" class="form-control" placeholder="Nome">
+            <input type="text" id="reg-sobrenome" class="form-control" placeholder="Sobrenome">
+          </div>
+          <input type="text" id="reg-setor" class="form-control mb-3" placeholder="Setor">
+          <div class="input-group mb-3">
             <input type="text" id="reg-email" class="form-control" placeholder="E-mail">
             <span class="input-group-text">@praiaclube.org.br</span>
           </div>
           <div class="input-group pass-input">
             <input type="password" id="reg-pass" class="form-control" placeholder="Senha">
-            <button class="btn btn-light btn-outline-secondary" tabindex="-1">
+            <button class="btn btn-light btn-outline-secondary border-start-0" tabindex="-1">
               <i class="bi bi-eye-fill"></i>
             </button>
           </div>
-          <div id="register-err" class="text-danger small d-none"></div>
+          <div id="register-err" class="text-danger small d-none mt-1 mb-2"></div>
         </div>
-        <div class="modal-footer border-0 flex-column px-4 pb-4 gap-2">
-          <button class="btn btn-primary w-100" id="register-submit-btn">Registrar</button>
-          <button class="btn btn-link w-100 text-decoration-none" id="back-btn">Voltar ao login</button>
+        <div class="modal-footer border-0 flex-column px-4 pb-3 gap-2">
+          <button class="btn btn-primary w-100 ms-0" id="register-submit-btn">Cadastrar</button>
+          <button class="btn btn-link w-100 text-decoration-none ms-0" id="back-btn">Voltar ao login</button>
         </div>
       </div>
 

@@ -4,8 +4,8 @@
 
     <!--  
       TODO: 
+        Terminar aba de locais,
         Adaptar layout para mobile,
-        Banco de dados login e senha,
         Cache
     -->
 
@@ -124,15 +124,14 @@
       <?!= HtmlService.createHtmlOutputFromFile('account').getContent() ?>
     </template>
 
+    <template id="view-locais">
+      <?!= HtmlService.createHtmlOutputFromFile('locais').getContent() ?>
+    </template>
+
     <div class="row h-100">
       <aside class="col-2 shadow p-0">
         <ul class="nav nav-pills d-flex flex-column h-100">
           <img src="https://x1futsal.com.br/wp-content/uploads/2021/04/Escudo-Completo-Praia-Clube.png" class="img-fluid w-50 mx-auto mt-4 mb-4">
-          <li class="nav-item">
-            <a class="nav-link w-100 text-start text-dark" href="#inicio">
-              <i class="bi bi-house text-warning"></i>Início
-            </a>
-          </li>
           <li class="nav-item">
             <a class="nav-link w-100 text-start text-dark" href="#add">
               <i class="bi bi-pencil-square text-primary"></i>Criar
@@ -140,7 +139,12 @@
           </li>
           <li class="nav-item">
             <a class="nav-link w-100 text-start text-dark" href="#eventos">
-              <i class="bi bi-calendar text-success"></i>Eventos
+              <i class="bi bi-calendar-event text-success"></i>Eventos
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link w-100 text-start text-dark" href="#locais">
+              <i class="bi bi-geo-alt text-danger"></i>Locais
             </a>
           </li>
           <li class="nav-item mt-auto mb-3">
@@ -150,7 +154,12 @@
           </li>
         </ul>
       </aside>
-      <main class="col d-flex flex-column border rounded-3 shadow-sm bg-white m-3 p-4" id="content"></main>
+      <main class="col d-flex flex-column border rounded-3 shadow-sm bg-white m-3 p-4">
+
+        <div class="header d-flex align-items-center border-bottom pb-1 mb-4" id="page-header"></div>
+        <div id="content"></div>
+
+      </main>
     </div>
 
     <div class="modal fade" id="modal" tabindex="-1">
@@ -184,6 +193,9 @@
     
     <script>
 
+      const skipLogin = true
+      const start = 'locais'
+
       const EV = <?!= JSON.stringify(ev) ?>;
       const LC = <?!= JSON.stringify(lc) ?>;
 
@@ -200,6 +212,8 @@
 
       const sidebarLinks = document.querySelectorAll('.nav-link')
 
+      const mainHeader = document.getElementById('page-header')
+
       window.addEventListener('hashchange', () => {go(location.hash.slice(1))})
 
       function go(page) {
@@ -210,20 +224,14 @@
           a.classList.toggle('active', a.getAttribute('href') === `#${page}`)
         })
 
+        const control = Control[`${capital(page)}View`]
+
+        mainHeader.innerHTML = control.header
+        content.classList = `col-${control.size} d-flex flex-column flex-grow-1`
         content.innerHTML = ''
         content.appendChild(tpl.content.cloneNode(true))
 
-        if (page === 'eventos') {
-          EventosView.init(EV)
-        }
-
-        if (page === 'add') {
-          try { AddView.init(LC, CACHE) } catch(e) { toast(e) }
-        }
-
-        if (page === 'account') {
-          try { AccountView.init() } catch(e) { toast(e) }
-        }
+        control.init()
       }
 
       function refresh(page){
@@ -235,10 +243,15 @@
       // CONTROLE
       //
 
+      let userData
+
       const textMsg = document.getElementById("toast")
       let msg = new bootstrap.Toast(textMsg, {autohide: true, delay: 3000})
 
       function toast(text, cor = 'warning') {
+
+        text = text.replace('Error: ', '')
+
         textMsg.classList = `toast align-items-center border-0 text-bg-${cor}`
         textMsg.querySelector('.toast-body').innerHTML = text
         msg = bootstrap.Toast.getOrCreateInstance(textMsg, {autohide: true, delay: 3000})
@@ -274,562 +287,774 @@
         msg.show()
       }
       
-      const EventosView = {
-        cache() {
-          this.busca   = document.getElementById('busca')
-          this.inicio  = document.getElementById('inicio')
-          this.fim     = document.getElementById('fim')
-          this.lista   = document.getElementById('eventos')
-          this.config  = document.getElementById('config')
-          this.periodo = document.getElementById('periodo')
+      const Control = {
 
-          this.addBtn  = document.getElementById('add-btn')
-          this.editBtn = document.getElementById('edit-btn')
-          this.delBtn  = document.getElementById('del-btn')
-        },
+        AddView: {
 
-        bind() {
-          this.busca.oninput = () => this.filtrar()
+          header: '<i class="bi bi-pencil-fill text-primary bi-underline" style="border-bottom: 1.5px solid currentColor; line-height: 1; font-size: 1.4rem;"></i><h2>Criar Evento</h2>',
 
-          this.lista.onchange = () => this.renderConfig()
+          size: '7',
 
-          this.addBtn.onclick  = () => location.hash = 'add'
-          this.editBtn.onclick = () => this.editar()
-          this.delBtn.onclick  = () => this.apagar()
-        },
+          init() {
+            
+            this.db = LC
+            this.CACHE = CACHE
+            this.locaisSel = []
 
-        init(db) {
-          this.db = db
-          this.eventos = Array.isArray(db.eventos) ? db.eventos.slice() : []
-          this.cache()
-          this.bind()
-          this.renderLista()
-          flatpickr(this.periodo, {
-            mode: "range",
-            dateFormat: "Y-m-d",
-            locale: "pt",
-            allowInput: true,
-            onChange: () => this.filtrar()
-          })
-        },
+            this.getDOM()
+            this.bind()
+            this.renderListaLocais()
+            this.renderCalendar()
+            this.renderTipos()
+            this.titulo.focus()
+          },
 
-        renderLista(arr = this.eventos) {
-          this.lista.innerHTML = ''
+          getDOM() {
+            this.titulo = document.getElementById('titulo')
 
-          if (!arr.length) {
-            this.lista.innerHTML = `<option disabled>Nenhum evento</option>`
-            return
-          }
+            this.tipoBtn = document.getElementById('tipo-btn')
+            this.tipo = document.getElementById('tipo')
 
-          arr.forEach(e => {
-            const opt = document.createElement('option')
-            opt.value = e.id
-            opt.textContent = e.titulo
-            this.lista.appendChild(opt)
-          })
+            this.inicio = document.getElementById('inicio')
+            this.reverseBtn = document.getElementById('rev-btn')
+            this.fim = document.getElementById('fim')
+            this.addBtn = document.getElementById('add-btn')
+            this.datasSelecionadas = document.getElementById('datasSelecionadas')
 
-          this.lista.selectedIndex = 0
-          this.renderConfig()
-        },
+            this.buscaLocais = document.getElementById('busca-locais')
+            this.listaLocais = document.getElementById('lista-locais')
+            this.locaisSelecionados = document.getElementById('locaisSelecionados')
 
-        renderConfig() {
-          const id = this.lista.value
-          const ev = this.db.eventos.find(e => e.id == id)
+            this.obsInput = document.getElementById('obs')
 
-          this.config.innerHTML = ''
-          if (!ev) return
+            this.submitBtn = document.getElementById('submit-btn')
+          },
 
-          const ordem = ['titulo', 'locais', 'inicio', 'fim', 'tipo', 'id', 'serverID']
+          bind() {
+            this.buscaLocais.oninput = () => this.renderListaLocais(this.buscaLocais.value)
+            this.addBtn.onclick = () => this.renderDatas()
+            this.reverseBtn.onclick = () => this.reverseDates()
+            this.submitBtn.onclick = () => this.addEvent()
+          },
 
-          Object.entries(ev).sort((a, b) => ordem.indexOf(a[0]) - ordem.indexOf(b[0])).forEach(([k, v]) => {
-            if (k === 'obs' || k === 'titulo') return
-            const opt = document.createElement('option')
-            opt.textContent = `${capital(k)}: ${Array.isArray(v) ? v.length : v}`
-            this.config.appendChild(opt)
-          })
-        },
+          renderListaLocais(filtro = '') {
+            this.listaLocais.innerHTML = ''
+            const termo = filtro
 
-        filtrar() {
-          const termo = this.busca.value.toLowerCase()
-          const filtrados = this.eventos.filter(e =>
-            e.titulo.toLowerCase().includes(termo) ||
-            String(e.id).includes(termo)
-          )
-          this.renderLista(filtrados)
-        },
+            const setores = this.db.setores.filter(s => s.ativo).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 
-        editar() {
-          const ev = this.getSelecionado()
-          if (!ev) return
-          google.script.run._atualizarEvento(ev)
-        },
+            setores.forEach(setor => {
+              if (!setor.nome.toLowerCase().includes(termo.toLowerCase()) &&
+                  !setor.quadras.some(q => q.ativo && q.nome.toLowerCase().includes(termo.toLowerCase()))) return
 
-        async apagar() {
-          const ev = this.getSelecionado()
-          if (!ev) return
-          if (!await confirm(`Apagar o evento ${ev.titulo}?`)) return
+              // setores
+              const header = document.createElement('div')
+              header.className = 'dropdown-item rounded fw-bold ps-2 sticky-top dropdown-header-sticky'
+              header.textContent = setor.nome
+              header.id = setor.id
+              header.onclick = () => this.selecionarLocal(setor)
+              this.listaLocais.appendChild(header)
 
-          toastWait('Apagando evento...')
-
-          google.script.run
-            .withFailureHandler(err => toast(err.message, 'danger'))
-            .withSuccessHandler(() => {
-              this.db.eventos = this.db.eventos.filter(e => e.id != ev.id)
-              this.eventos = this.db.eventos.slice()
-              toast('Evento apagado', 'primary')
-              this.renderLista()
+              // quadras
+              setor.quadras.filter(q => q.ativo && q.nome.toLowerCase().includes(termo)).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR')).forEach(q => {
+                const item = document.createElement('div')
+                item.className = 'dropdown-item rounded p-0 ps-3'
+                item.id = q.id
+                item.textContent = q.nome
+                item.onclick = () => this.selecionarLocal(q)
+                this.listaLocais.appendChild(item)
+              })
             })
-            ._deleteEvento(ev.id)
-        },
+          },
 
-        getSelecionado() {
-          return this.db.eventos.find(e => e.id == this.lista.value)
-        }
-      }
+          renderSelecionados() {
+            this.locaisSelecionados.innerHTML = ''
+            this.locaisSel.sort((a, b) => {
+              const pa = a.tipo == 'setor' ? 0 : 1
+              const pb = b.tipo == 'setor' ? 0 : 1
 
-      const AddView = {
-        init(db, cache) {
-          this.db = db
-          this.CACHE = cache
-          this.locaisSel = []
-
-          this.getDOM()
-          this.bind()
-          this.renderListaLocais()
-          this.renderCalendar()
-          this.renderTipos()
-          this.titulo.focus()
-        },
-
-        getDOM() {
-          this.titulo = document.getElementById('titulo')
-
-          this.tipoBtn = document.getElementById('tipo-btn')
-          this.tipo = document.getElementById('tipo')
-
-          this.inicio = document.getElementById('inicio')
-          this.reverseBtn = document.getElementById('rev-btn')
-          this.fim = document.getElementById('fim')
-          this.addBtn = document.getElementById('add-btn')
-          this.datasSelecionadas = document.getElementById('datasSelecionadas')
-
-          this.buscaLocais = document.getElementById('busca-locais')
-          this.listaLocais = document.getElementById('lista-locais')
-          this.locaisSelecionados = document.getElementById('locaisSelecionados')
-
-          this.obsInput = document.getElementById('obs')
-
-          this.submitBtn = document.getElementById('submit-btn')
-        },
-
-        bind() {
-          this.buscaLocais.oninput = () => this.renderListaLocais(this.buscaLocais.value)
-          this.addBtn.onclick = () => this.renderDatas()
-          this.reverseBtn.onclick = () => this.reverseDates()
-          this.submitBtn.onclick = () => this.addEvent()
-        },
-
-        renderListaLocais(filtro = '') {
-          this.listaLocais.innerHTML = ''
-          const termo = filtro
-
-          const setores = this.db.setores.filter(s => s.ativo).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-
-          setores.forEach(setor => {
-            if (!setor.nome.toLowerCase().includes(termo.toLowerCase()) &&
-                !setor.quadras.some(q => q.ativo && q.nome.toLowerCase().includes(termo.toLowerCase()))) return
-
-            // setor
-            const header = document.createElement('div')
-            header.className = 'dropdown-item rounded fw-bold ps-2 sticky-top dropdown-header-sticky'
-            header.textContent = setor.nome
-            header.id = setor.id
-            header.onclick = () => this.selecionarLocal(setor)
-            this.listaLocais.appendChild(header)
-
-            // quadras
-            setor.quadras.filter(q => q.ativo && q.nome.toLowerCase().includes(termo)).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR')).forEach(q => {
-              const item = document.createElement('div')
-              item.className = 'dropdown-item rounded p-0 ps-3'
-              item.id = q.id
-              item.textContent = q.nome
-              item.onclick = () => this.selecionarLocal(q)
-              this.listaLocais.appendChild(item)
+              return (pa - pb || Number(a.nome) - Number(b.nome) ||  a.nome.localeCompare(b.nome, 'pt-BR'))
+            }).forEach(l => {
+              const btn = document.createElement('button')
+              btn.className = 'btn btn-sm align-items-center rounded-2 gap-1 mt-1'
+              btn.textContent = l.tipo == 'quadra' ? `${l.setor}: ${l.nome}` : l.nome
+              btn.classList.add('btn-' + (l.tipo == 'setor' ? 'primary' : 'success'))
+              btn.onclick = () => this.apagarLocal(l)
+              this.locaisSelecionados.appendChild(btn)
             })
-          })
-        },
+          },
 
-        renderSelecionados() {
-          this.locaisSelecionados.innerHTML = ''
-          this.locaisSel.sort((a, b) => {
-            const pa = a.tipo == 'setor' ? 0 : 1
-            const pb = b.tipo == 'setor' ? 0 : 1
+          selecionarLocal(local) {
+            this.listaLocais.querySelectorAll(`[id^="${local.id + '.'}"]`).forEach(l => l.classList.add('disabled'))
+            this.listaLocais.querySelector(`[id="${local.id}"]`).classList.add('disabled')
 
-            return (pa - pb || Number(a.nome) - Number(b.nome) ||  a.nome.localeCompare(b.nome, 'pt-BR'))
-          }).forEach(l => {
+            this.locaisSel = [local, ...this.locaisSel.filter(l => !l.id.startsWith(local.id + '.'))]
+            this.renderSelecionados()
+          },
+
+          apagarLocal(local){
+            this.listaLocais.querySelectorAll(`[id^="${local.id + '.'}"]`).forEach(l => l.classList.remove('disabled'))
+            this.listaLocais.querySelector(`[id="${local.id}"]`).classList.remove('disabled')
+
+            this.locaisSel = this.locaisSel.filter(l => l.id != local.id)
+            this.renderSelecionados()
+          },
+
+          renderCalendar() {
+
+            flatpickr("#calendario-inicio", {
+              locale: "pt",
+              inline: true,
+              enableTime: true,
+              time_24hr: true,
+              dateFormat: "d/m \\à\\s H:i",
+              onChange: (selectedDates, dateStr) => {
+                this.inicio.textContent = dateStr
+                this.inicio.color = 'black'
+                this.inicio.dataset.date = selectedDates[0]
+              }
+            })
+
+            flatpickr("#calendario-fim", {
+              locale: "pt",
+              inline: true,
+              enableTime: true,
+              time_24hr: true,
+              dateFormat: "d/m \\à\\s H:i",
+              onChange: (selectedDates, dateStr) => {
+                this.fim.textContent = dateStr
+                this.fim.color = 'black'
+                this.fim.dataset.date = selectedDates[0]
+              }
+            })
+          },
+
+          renderDatas() {
+            if(!this.inicio.dataset.date) return toast('Selecione uma data de início', 'warning')
+            if(!this.fim.dataset.date) return toast('Selecione uma data de fim', 'warning')
+    
+            const date = {inicio: new Date(this.inicio.dataset.date), fim: new Date(this.fim.dataset.date)}
+            const intervalo = date.fim - date.inicio
+
+            if(date.inicio > date.fim) {
+              [date.inicio, date.fim] = [date.fim, date.inicio]
+              this.reverseDates()
+            }
+            
+            const datas = [...this.datasSelecionadas.querySelectorAll('button')].map(d => JSON.parse(d.dataset.date))
+            
+            if(Math.abs(intervalo) < 60 * 60 * 1000) return toast('Escolha um intervalo de pelo menos 1 hora', 'warning')
+
+            date.inicio = date.inicio.toISOString()
+            date.fim = date.fim.toISOString()
+
+            const folga = 30
+
+            if(datas.some(d => this.isInside(date, d))) return toast('Essa data já foi escolhida', 'warning')
+            if(datas.some(d => this.isInside(date, d, folga))) return toast(`No mínimo ${folga} minutos de folga entre datas`, 'warning')
+
+            const longo = intervalo >= 24 * 60 * 60 * 1000
+            const shortFormat = this.inicio.textContent + ' até ' + this.fim.textContent.split(' às ')[1]
+            const longFormat = this.inicio.textContent + ' até ' + this.fim.textContent
+
             const btn = document.createElement('button')
             btn.className = 'btn btn-sm align-items-center rounded-2 gap-1 mt-1'
-            btn.textContent = l.tipo == 'quadra' ? `${l.setor}: ${l.nome}` : l.nome
-            btn.classList.add('btn-' + (l.tipo == 'setor' ? 'primary' : 'success'))
-            btn.onclick = () => this.apagarLocal(l)
-            this.locaisSelecionados.appendChild(btn)
-          })
-        },
+            btn.textContent = longo ? longFormat : shortFormat
+            btn.dataset.date = JSON.stringify(date)
+            btn.classList.add('btn-' + (longo ? 'primary' : 'success'))
+            btn.onclick = () => btn.remove()
+            this.datasSelecionadas.appendChild(btn)
+          },
 
-        selecionarLocal(local) {
-          this.listaLocais.querySelectorAll(`[id^="${local.id + '.'}"]`).forEach(l => l.classList.add('disabled'))
-          this.listaLocais.querySelector(`[id="${local.id}"]`).classList.add('disabled')
+          reverseDates(){
+            const inicioClone = this.inicio.cloneNode(true)
+            const fimClone = this.fim.cloneNode(true)
 
-          this.locaisSel = [local, ...this.locaisSel.filter(l => !l.id.startsWith(local.id + '.'))]
-          this.renderSelecionados()
-        },
+            this.inicio.replaceWith(fimClone)
+            this.fim.replaceWith(inicioClone)
 
-        apagarLocal(local){
-          this.listaLocais.querySelectorAll(`[id^="${local.id + '.'}"]`).forEach(l => l.classList.remove('disabled'))
-          this.listaLocais.querySelector(`[id="${local.id}"]`).classList.remove('disabled')
+            this.inicio = fimClone
+            this.fim = inicioClone
 
-          this.locaisSel = this.locaisSel.filter(l => l.id != local.id)
-          this.renderSelecionados()
-        },
+            if(this.inicio.textContent == 'Fim') this.inicio.textContent = 'Início'
+            if(this.fim.textContent == 'Início') this.fim.textContent = 'Fim'
+          },
 
-        renderCalendar() {
+          renderTipos(){
+            this.tipoSelecionado = null
+            this.tipoBtn.textContent = 'Tipo'
 
-          flatpickr("#calendario-inicio", {
-            locale: "pt",
-            inline: true,
-            enableTime: true,
-            time_24hr: true,
-            dateFormat: "d/m \\à\\s H:i",
-            onChange: (selectedDates, dateStr) => {
-              this.inicio.textContent = dateStr
-              this.inicio.color = 'black'
-              this.inicio.dataset.date = selectedDates[0]
-            }
-          })
+            this.tipo.innerHTML = ''
 
-          flatpickr("#calendario-fim", {
-            locale: "pt",
-            inline: true,
-            enableTime: true,
-            time_24hr: true,
-            dateFormat: "d/m \\à\\s H:i",
-            onChange: (selectedDates, dateStr) => {
-              this.fim.textContent = dateStr
-              this.fim.color = 'black'
-              this.fim.dataset.date = selectedDates[0]
-            }
-          })
-        },
+            Object.entries(TIPOS).forEach(([nome,cor]) =>{
 
-        renderDatas() {
-          if(!this.inicio.dataset.date) return toast('Selecione uma data de início', 'warning')
-          if(!this.fim.dataset.date) return toast('Selecione uma data de fim', 'warning')
-  
-          const date = {inicio: new Date(this.inicio.dataset.date), fim: new Date(this.fim.dataset.date)}
-          const intervalo = date.fim - date.inicio
+              const li = document.createElement('li')
+              li.classList.add('px-1')
 
-          if(date.inicio > date.fim) {
-            [date.inicio, date.fim] = [date.fim, date.inicio]
-            this.reverseDates()
-          }
-          
-          const datas = [...this.datasSelecionadas.querySelectorAll('button')].map(d => JSON.parse(d.dataset.date))
-          
-          if(Math.abs(intervalo) < 60 * 60 * 1000) return toast('Escolha um intervalo de pelo menos 1 hora', 'warning')
+              const a = document.createElement('li')
+              a.className = "dropdown-item rounded ps-2"
+              a.textContent = nome
+              a.style.cssText = `--bs-dropdown-link-active-bg: var(--bs-${cor}); --bs-dropdown-link-active-color: white;`
+              a.onclick = (e) => {
+                e.preventDefault()
+                this.tipoSelecionado = a.textContent
+                this.tipoBtn.textContent = a.textContent
+                this.tipoBtn.classList.remove('is-invalid')
 
-          date.inicio = date.inicio.toISOString()
-          date.fim = date.fim.toISOString()
+                Array.from(this.tipoBtn.classList).forEach(c => {
+                  if (c.startsWith('btn-')) this.tipoBtn.classList.remove(c)
+                })
 
-          const folga = 30
-
-          if(datas.some(d => this.isInside(date, d))) return toast('Essa data já foi escolhida', 'warning')
-          if(datas.some(d => this.isInside(date, d, folga))) return toast(`No mínimo ${folga} minutos de folga entre datas`, 'warning')
-
-          const longo = intervalo >= 24 * 60 * 60 * 1000
-          const shortFormat = this.inicio.textContent + ' até ' + this.fim.textContent.split(' às ')[1]
-          const longFormat = this.inicio.textContent + ' até ' + this.fim.textContent
-
-          const btn = document.createElement('button')
-          btn.className = 'btn btn-sm align-items-center rounded-2 gap-1 mt-1'
-          btn.textContent = longo ? longFormat : shortFormat
-          btn.dataset.date = JSON.stringify(date)
-          btn.classList.add('btn-' + (longo ? 'primary' : 'success'))
-          btn.onclick = () => btn.remove()
-          this.datasSelecionadas.appendChild(btn)
-        },
-
-        reverseDates(){
-          const inicioClone = this.inicio.cloneNode(true)
-          const fimClone = this.fim.cloneNode(true)
-
-          this.inicio.replaceWith(fimClone)
-          this.fim.replaceWith(inicioClone)
-
-          this.inicio = fimClone
-          this.fim = inicioClone
-
-          if(this.inicio.textContent == 'Fim') this.inicio.textContent = 'Início'
-          if(this.fim.textContent == 'Início') this.fim.textContent = 'Fim'
-        },
-
-        renderTipos(){
-          this.tipoSelecionado = null
-          this.tipoBtn.textContent = 'Tipo'
-
-          this.tipo.innerHTML = ''
-
-          Object.entries(TIPOS).forEach(([nome,cor]) =>{
-
-            const li = document.createElement('li')
-            li.classList.add('px-1')
-
-            const a = document.createElement('li')
-            a.className = "dropdown-item rounded ps-2"
-            a.textContent = nome
-            a.style.cssText = `--bs-dropdown-link-active-bg: var(--bs-${cor}); --bs-dropdown-link-active-color: white;`
-            a.onclick = (e) => {
-              e.preventDefault()
-              this.tipoSelecionado = a.textContent
-              this.tipoBtn.textContent = a.textContent
-              this.tipoBtn.classList.remove('is-invalid')
-
-              Array.from(this.tipoBtn.classList).forEach(c => {
-                if (c.startsWith('btn-')) this.tipoBtn.classList.remove(c)
-              })
-
-              this.tipoBtn.classList.add('btn-' + cor.button)
-            }
-
-            li.appendChild(a)
-            this.tipo.appendChild(li)
-          })
-        },
-
-        isInside(x,y,folga = 0){
-          folga *= 60 * 1000
-          return new Date(x.inicio).getTime() < (new Date(y.fim).getTime() + folga - 1000) && new Date(y.inicio).getTime() < (new Date(x.fim).getTime() - folga + 1000)
-        },
-
-        getDates(){
-          return [...this.datasSelecionadas.querySelectorAll('button')]
-        },
-
-        addEvent(){
-          const titulo = this.titulo.value
-          if(!titulo || titulo.length <= 2) return toast('Escolha um título', 'warning')
-
-          const tipo = this.tipoBtn.textContent
-          if(tipo == 'Tipo') return toast('Escolha um tipo', 'warning')
-
-          let buttons = this.getDates()
-
-          if(!buttons || buttons.length == 0){
-            this.renderDatas()
-            buttons = this.getDates()
-            if(!buttons || buttons.length == 0) return
-          }
-
-          const datas = buttons.map(d => JSON.parse(d.dataset.date))
-
-          const locais = this.locaisSel
-          if(!locais || locais.length == 0) return toast('Escolha ao menos um local', 'warning')
-
-          const obs = this.obsInput.value
-
-          const evento = {titulo, tipo, datas, locais, obs}
-
-          disable(this.submitBtn)
-
-          toastWait("Adicionando evento...")
-
-          google.script.run.withFailureHandler(err => {
-            try{
-              err = JSON.parse(err.message || err)
-              this.showError(err.locais)
-              toast(err.message, 'danger')
-            }
-            catch(e){
-              toast(err.message, 'danger')
-            }
-            enable(this.submitBtn)
-          }).withSuccessHandler(() => {
-            toast('Adicionado', 'primary')
-            refresh('add')
-          })._addEvento(evento)
-        }
-      }
-
-      const PassView = {
-        init(tpl){
-          this.getDOM(tpl)
-          this.bind()
-        },
-
-        getDOM(tpl){
-          this.inputs = tpl.querySelectorAll('.pass-input')
-        },
-
-        bind(){
-          this.inputs.forEach(d => {
-            const input = d.querySelector('.form-control')
-            const btn = d.querySelector('.btn')
-            const eye = btn.querySelector('.bi-eye-fill')
-
-            btn.tabIndex = -1
-            btn.onclick = () => {
-              const hidden = input.type == 'password'
-              input.type = hidden ? 'text' : 'password'
-            
-              eye.classList.toggle('bi-eye-fill');
-              eye.classList.toggle('bi-eye-slash-fill');
-            }
-          })
-        }
-      }
-
-      const AccountView = {
-
-        init(){
-          this.getDOM()
-          this.bind()
-          this.loadTpl('pass-tpl')
-        },
-
-        getDOM(){
-          this.passSlot = document.getElementById('pass-slot')
-        },
-
-        bind(){
-        },
-
-        loadTpl(name){
-          const tpl = document.getElementById(name).content
-          this.passSlot.innerHTML = ''
-          this.passSlot.appendChild(tpl.cloneNode(true))
-          PassView.init(this.passSlot)
-        },
-      }
-
-      const LoginView = {
-
-        init() {
-          this.getDOM()
-          this.bind()
-          PassView.init(document.body)
-          this.modal = new bootstrap.Modal(document.getElementById('modal-login'), {
-            backdrop: 'static',
-            keyboard: false
-          })
-          this.modal.show()
-        },
-
-        getDOM() {
-          this.user = document.getElementById('login-user')
-          this.pass = document.getElementById('login-pass')
-          this.err = document.getElementById('login-err')
-          this.loginBtn = document.getElementById('login-btn')
-          this.registerBtn = document.getElementById('register-btn')
-
-          this.painelLogin = document.getElementById('painel-login')
-          this.painelRegister = document.getElementById('painel-register')
-          this.regNome = document.getElementById('reg-nome')
-          this.regSetor = document.getElementById('reg-setor')
-          this.regEmail = document.getElementById('reg-email')
-          this.regPass = document.getElementById('reg-pass')
-          this.regErr = document.getElementById('register-err')
-          this.regBtn = document.getElementById('register-submit-btn')
-          this.backBtn = document.getElementById('back-btn')
-        },
-
-        bind() {
-          this.loginBtn.onclick = () => this.login()
-          this.registerBtn.onclick = () => this.register()
-          this.backBtn.onclick = () => this.back()
-          this.regBtn.onclick = () => this.submitRegister()
-
-          ;[this.user, this.pass].forEach(input => {
-            input.addEventListener('keydown', e => {
-              if (e.key === 'Enter') this.login()
-            })
-          })
-        },
-
-        setErr(msg) {
-          this.err.textContent = msg
-          this.err.classList.toggle('d-none', !msg)
-        },
-
-        login() {
-          const user = this.user.value.trim()
-          const pass = this.pass.value
-
-          if (!user || !pass) return this.setErr('Preencha todos os campos')
-          this.setErr('')
-
-          disable(this.loginBtn)
-          toastWait('Entrando...')
-
-          google.script.run
-            .withFailureHandler(err => {
-              toast(err.message, 'danger')
-              enable(this.loginBtn)
-            })
-            .withSuccessHandler(result => {
-              if (!result) {
-                this.setErr('Usuário ou senha incorretos')
-                enable(this.loginBtn)
-                return
+                this.tipoBtn.classList.add('btn-' + cor.button)
               }
-              this.modal.hide()
-              document.body.classList.remove('view-login')
-              msg.hide()
-              go(location.hash.slice(1) || 'add')
+
+              li.appendChild(a)
+              this.tipo.appendChild(li)
             })
-            .login(user, pass)
+          },
+
+          isInside(x,y,folga = 0){
+            folga *= 60 * 1000
+            return new Date(x.inicio).getTime() < (new Date(y.fim).getTime() + folga - 1000) && new Date(y.inicio).getTime() < (new Date(x.fim).getTime() - folga + 1000)
+          },
+
+          getDates(){
+            return [...this.datasSelecionadas.querySelectorAll('button')]
+          },
+
+          addEvent(){
+            const titulo = this.titulo.value
+            if(!titulo || titulo.length <= 2) return toast('Escolha um título', 'warning')
+
+            const tipo = this.tipoBtn.textContent
+            if(tipo == 'Tipo') return toast('Escolha um tipo', 'warning')
+
+            let buttons = this.getDates()
+
+            if(!buttons || buttons.length == 0){
+              this.renderDatas()
+              buttons = this.getDates()
+              if(!buttons || buttons.length == 0) return
+            }
+
+            const datas = buttons.map(d => JSON.parse(d.dataset.date))
+
+            const locais = this.locaisSel
+            if(!locais || locais.length == 0) return toast('Escolha ao menos um local', 'warning')
+
+            const obs = this.obsInput.value
+
+            const {nome, sobrenome, email} = userData
+
+            const evento = {titulo, tipo, datas, locais, obs, criador: {nome: nome + ' ' + sobrenome, email}}
+
+            disable(this.submitBtn)
+
+            toastWait("Adicionando evento...")
+
+            google.script.run.withFailureHandler(err => {
+              try{
+                err = JSON.parse(err.message || err)
+                this.showError(err.locais)
+                toast(err.message, 'danger')
+              }
+              catch(e){
+                toast(err.message, 'danger')
+              }
+              enable(this.submitBtn)
+            }).withSuccessHandler(() => {
+              toast('Adicionado', 'primary')
+              refresh('add')
+            }).addEvento(evento)
+          }
+        },
+        
+        EventosView: {
+
+          header: '<i class="bi bi-calendar2-event-fill text-success" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Lista de Eventos</h2>',
+
+          size: '12',
+
+          getDOM() {
+            this.busca   = document.getElementById('busca')
+            this.periodo = document.getElementById('periodo')
+            this.lista   = document.getElementById('eventos')
+            this.config  = document.getElementById('config')
+            this.criados = document.getElementById('criados')
+
+            this.addBtn  = document.getElementById('add-btn')
+            this.editBtn = document.getElementById('edit-btn')
+            this.delBtn  = document.getElementById('del-btn')
+          },
+
+          bind() {
+            this.busca.oninput = () => this.filtrar()
+            this.criados.onchange = () => this.filtrar()
+
+            this.lista.onchange = () => {
+              [this.editBtn, this.delBtn].forEach((userData.admin) ? enable : disable)
+              this.renderConfig()
+            }
+            this.addBtn.onclick  = () => location.hash = 'add'
+            this.editBtn.onclick = () => this.editar()
+            this.delBtn.onclick  = () => this.apagar();
+          },
+
+          init() {
+            this.db = EV
+            this.dbLocais = LC
+            this.eventos = this.db.eventos.slice().sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'))
+            this.getDOM()
+            this.bind();
+            [this.editBtn, this.delBtn].forEach(userData.admin ? enable : disable)
+            this.renderLista()
+            flatpickr(this.periodo, {
+              mode: "range",
+              dateFormat: "Y-m-d",
+              locale: "pt",
+              allowInput: true,
+              onChange: () => this.filtrar()
+            })
+          },
+
+          renderLista(arr = this.eventos) {
+            this.lista.innerHTML = ''
+
+            if (!arr.length) {
+              this.lista.innerHTML = `<option disabled>Nenhum evento</option>`
+              return
+            }
+
+            arr.forEach(e => {
+              const opt = document.createElement('option')
+              opt.value = e.id
+              opt.textContent = e.titulo
+              this.lista.appendChild(opt)
+            })
+
+            this.lista.selectedIndex = 0
+            this.renderConfig()
+          },
+
+          renderConfig() {
+            const id = this.lista.value
+            const ev = this.db.eventos.find(e => e.id == id)
+
+            this.config.innerHTML = ''
+            if (!ev) return
+
+            const email = userData.email
+            const nome = email.split('@')[0].split('.').map(p => capital(p)).join(' ')
+
+            if(ev.criador?.email == email || ev.criador === email || ev.criador == nome) [this.editBtn, this.delBtn].forEach(enable)
+
+            const ordem = ['criador', 'locais', 'datas', 'tipo', 'id', 'serverID']
+
+            Object.entries(ev).sort((a, b) => ordem.indexOf(a[0]) - ordem.indexOf(b[0])).forEach(([k, v]) => {
+
+              if (k === 'obs' || k === 'titulo') return
+
+              const opt = document.createElement('option')
+
+              if (k === 'criador'){
+                if(v.nome) v = v.nome
+                if(v.includes('@')) v = v.split('@')[0].split('.').map(p => capital(p)).join(' ')
+              } 
+
+              if (k === 'locais') {
+                opt.title = v.map(l => {
+                  const setor = LC.setores.find(lc => lc.id == l.split('.')[0])
+                  const quadra = setor.quadras.find(lc => lc.id === l)
+
+                  return quadra ? `${setor.nome} - ${quadra.nome}` : setor.nome
+                }).sort((a, b) => a.localeCompare(b, 'pt-BR')).join('\n')
+                v = [...new Set(v.map(l => LC.setores.find(lc => lc.id == l.split('.')[0]).nome))].sort((a, b) => a.localeCompare(b, 'pt-BR')).join(', ')
+              }
+
+              if (k === 'datas') {
+                const lista = v.map(d => { 
+                  const inicio = new Date(d.inicio)
+                  const fim = new Date(d.fim)
+
+                  const longo = fim - inicio >= 24 * 60 * 60 * 1000 
+                  return `${inicio.datahora('-')} até ${longo ? fim.datahora('-') : fim.hora()}`
+                })
+                v = lista.join(', ')
+                opt.title = lista.join('\n')
+              }
+
+              opt.textContent = `${capital(k)}: ${v}`
+              this.config.appendChild(opt)
+            })
+          },
+
+          filtrar() {
+            const termo = this.busca.value.toLowerCase()
+            const filtrados = this.eventos.filter(e => {
+
+              const pesquisa = e.titulo.toLowerCase().includes(termo) || String(e.id).includes(termo)
+              const email = userData.email
+              const nome = email.split('@')[0].split('.').map(p => capital(p)).join(' ')
+              const criados = this.criados.checked
+              const meusEventos = criados ? (e.criador?.email == email || e.criador === email || e.criador == nome) : true
+
+              return pesquisa && meusEventos
+          })
+            this.renderLista(filtrados)
+          },
+
+          editar() {
+            const ev = this.getSelecionado()
+            if (!ev) return
+            google.script.run._atualizarEvento(ev)
+          },
+
+          async apagar() {
+            const ev = this.getSelecionado()
+            if (!ev) return
+            if (!await confirm(`Apagar o evento ${ev.titulo}?`)) return
+
+            toastWait('Apagando evento...')
+
+            google.script.run
+              .withFailureHandler(err => toast(err.message, 'danger'))
+              .withSuccessHandler(() => {
+                this.db.eventos = this.db.eventos.filter(e => e.id != ev.id)
+                this.eventos = this.db.eventos.slice().sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'))
+                toast('Evento apagado', 'primary')
+                this.renderLista()
+              })
+              .deleteEvento(ev.id)
+          },
+
+          getSelecionado() {
+            return this.db.eventos.find(e => e.id == this.lista.value)
+          }
         },
 
-        register() {
-          this.painelLogin.classList.add('d-none')
-          this.painelRegister.classList.remove('d-none')
-          PassView.init(this.painelRegister)  // inicializa o olho do registro
+        LocaisView:{
+
+          header: '<i class="bi bi-geo-alt-fill text-danger" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Lista de Setores</h2>',
+
+          size: 12,
+
+          init(){
+            this.db = LC
+            this.getDOM()
+            this.bind()
+            this.renderSetores()
+            this.renderQuadras()
+          },
+
+          getDOM(){
+            this.busca    = document.getElementById('busca')
+            this.busca2   = document.getElementById('busca2')
+            this.listaSetores = document.getElementById('setores')
+            this.listaQuadras = document.getElementById('quadras')
+
+            this.addBtn   = document.getElementById('add-btn')
+            this.editBtn  = document.getElementById('edit-btn')
+            this.delBtn   = document.getElementById('del-btn')
+
+            this.changeIpt  = document.getElementById('change')
+          },
+
+          bind(){
+            this.busca.oninput = () => this.renderSetores()
+            this.listaSetores.onchange = () => this.renderQuadras()
+            this.listaSetores.addEventListener("keydown", e => {
+              if(e.key == "ArrowRight") this.listaQuadras.focus()
+            })
+            this.listaQuadras.addEventListener("keydown", e => {
+              if(e.key == "ArrowLeft") this.listaSetores.focus()
+            })
+          },
+
+          filtrar(locais, termo) {
+            return locais.filter(l => {
+              const nome = l.nome.toLowerCase().includes(termo)
+              const id = String(l.id).includes(termo)
+              const nomeQuadra = l.quadras?.some(q => q.nome.toLowerCase().includes(termo))
+              const idQuadra = l.quadras?.some(q => q.id.includes(termo))
+
+              return nome || id || nomeQuadra || idQuadra
+            })
+          },
+
+          renderSetores(){
+            const setores = this.filtrar(this.db.setores.slice(), this.busca.value).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+            this.listaSetores.innerHTML = ''
+
+            if (!setores.length) {
+              this.listaSetores.innerHTML = `<option disabled>Nenhum setor</option>`
+              return
+            }
+
+            setores.forEach(s => {
+              const opt = document.createElement('option')
+              opt.value = s.id
+              opt.textContent = s.nome
+              this.listaSetores.appendChild(opt)
+            })
+
+            this.listaSetores.selectedIndex = 0
+            this.renderQuadras()
+          },
+
+          renderQuadras(){
+            const setor = this.db.setores.slice().find(s => s.id === this.listaSetores.value)
+            const quadras = this.filtrar(setor.quadras, this.busca2.value).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR'))
+            this.listaQuadras.innerHTML = ''
+
+            if (!quadras || !quadras.length) {
+              this.listaQuadras.innerHTML = `<option disabled>Nenhuma quadra</option>`
+              return
+            }
+
+            quadras.forEach(s => {
+              const opt = document.createElement('option')
+              opt.value = s.id
+              opt.textContent = s.nome
+              this.listaQuadras.appendChild(opt)
+            })
+
+            this.listaQuadras.selectedIndex = 0
+          }
+
         },
 
-        back() {
-          this.painelRegister.classList.add('d-none')
-          this.painelLogin.classList.remove('d-none')
+        PassView: {
+          init(tpl){
+            this.getDOM(tpl)
+            this.bind()
+          },
+
+          getDOM(tpl){
+            this.inputs = tpl.querySelectorAll('.pass-input')
+          },
+
+          bind(){
+            this.inputs.forEach(d => {
+              const input = d.querySelector('.form-control')
+              const btn = d.querySelector('.btn')
+              const eye = btn.querySelector('.bi-eye-fill')
+
+              btn.tabIndex = -1
+              btn.onclick = () => {
+                const hidden = input.type == 'password'
+                input.type = hidden ? 'text' : 'password'
+              
+                eye.classList.toggle('bi-eye-fill');
+                eye.classList.toggle('bi-eye-slash-fill');
+              }
+            })
+          }
         },
 
-        submitRegister() {
-          const nome  = this.regNome.value.trim()
-          const setor = this.regSetor.value.trim()
-          const email = this.regEmail.value.trim()
-          const pass  = this.regPass.value
+        AccountView: {
 
-          if (!nome || !setor || !email || !pass)
-            return this.regErr.textContent = 'Preencha todos os campos', this.regErr.classList.remove('d-none')
+          header: '<i class="bi bi-person-circle text-dark" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Conta</h2>',
 
-          this.regErr.classList.add('d-none')
-          disable(this.regBtn)
-          toastWait('Registrando...')
+          size: '6',
 
-          google.script.run
-            .withFailureHandler(err => {
-              this.regErr.textContent = err.message
-              this.regErr.classList.remove('d-none')
-              enable(this.regBtn)
+          init(){
+            this.getDOM()
+            this.bind()
+            Control.PassView.init(document.body)
+          },
+
+          getDOM(){
+            this.nome = document.getElementById('nome')
+            this.sobrenome = document.getElementById('sobrenome')
+            this.setor = document.getElementById('setor')
+            this.email = document.getElementById('email')
+            
+            this.panelMain = document.getElementById('panel-main')
+            this.senha = document.getElementById('senha')
+            this.changeBtn = document.getElementById('change-btn')
+
+            this.panelChange = document.getElementById('panel-change')
+            this.oldPass = document.getElementById('old-pass')
+            this.newPass = document.getElementById('new-pass')
+            this.saveBtn = document.getElementById('save-btn')
+            this.cancelBtn = document.getElementById('cancel-btn')
+          },
+
+          bind(){
+            try{const {nome, sobrenome, email, setor, senha} = userData
+            this.nome.value = nome
+            this.sobrenome.value = sobrenome
+            this.setor.value = setor
+            this.email.value = email.split('@')[0]
+            this.senha.value = senha
+            this.changeBtn.onclick = () => this.changePass()
+            this.saveBtn.onclick = () => this.submitPass()
+            this.cancelBtn.onclick = () => this.back()}catch(e){toast(e)}
+          },
+
+          changePass(){
+            this.panelMain.classList.add('d-none')
+            this.panelChange.classList.remove('d-none')
+           },
+
+          submitPass(){
+
+            const email = userData.email
+            const antiga = this.oldPass.value
+            const nova = this.newPass.value
+
+            if(!antiga) return toast("Digite a senha atual")
+            if(nova.length < 6) return toast("Escolha uma senha maior")
+            
+            disable(this.saveBtn)
+            
+            toastWait('Alterando senha...')
+
+            google.script.run
+              .withFailureHandler(err => {
+                toast(err.message, 'danger')
+                enable(this.saveBtn)
+              })
+              .withSuccessHandler(() => {
+                toast('Senha alterada com sucesso', 'success')
+                userData.senha = '*'.repeat(nova.length)
+                this.back()
+            }).alterarSenha(email, antiga, nova)
+          },
+
+          back(){
+            this.panelMain.classList.remove('d-none')
+            this.panelChange.classList.add('d-none')
+            this.senha.value = userData.senha
+          }
+        },
+
+        LoginView: {
+
+          init() {
+            this.getDOM()
+            this.bind()
+            Control.PassView.init(document.body)
+            this.modal = new bootstrap.Modal(document.getElementById('modal-login'), {
+              backdrop: 'static',
+              keyboard: false
             })
-            .withSuccessHandler(() => {
-              this.back()
-              toast('Conta criada! Aguarde aprovação.', 'success')
+            this.modal.show()
+          },
+
+          getDOM() {
+            this.user = document.getElementById('login-user')
+            this.pass = document.getElementById('login-pass')
+            this.err = document.getElementById('login-err')
+            this.loginBtn = document.getElementById('login-btn')
+            this.registerBtn = document.getElementById('register-btn')
+
+            this.painelLogin = document.getElementById('painel-login')
+            this.painelRegister = document.getElementById('painel-register')
+            this.regNome = document.getElementById('reg-nome')
+            this.regSobrenome = document.getElementById('reg-sobrenome')
+            this.regSetor = document.getElementById('reg-setor')
+            this.regEmail = document.getElementById('reg-email')
+            this.regPass = document.getElementById('reg-pass')
+            this.regErr = document.getElementById('register-err')
+            this.regBtn = document.getElementById('register-submit-btn')
+            this.backBtn = document.getElementById('back-btn')
+          },
+
+          bind() {
+            this.loginBtn.onclick = () => this.login()
+            this.registerBtn.onclick = () => this.register()
+            this.backBtn.onclick = () => this.back()
+            this.regBtn.onclick = () => this.submitRegister();
+
+            [this.user, this.pass].forEach(input => {
+              input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') this.login()
+              })
             })
-            .register({nome, setor, email, pass})
+          },
+
+          setErr(msg) {
+            this.err.textContent = msg
+            this.err.classList.toggle('d-none', !msg)
+          },
+
+          login() {
+            const user = this.user.value.trim() + '@praiaclube.org.br'
+            const pass = this.pass.value
+
+            if(!user || !pass) return this.setErr('Preencha todos os campos')
+            if(pass.length < 6) return this.setErr('Escolha uma senha maior')
+            this.setErr('')
+
+            disable(this.loginBtn)
+            toastWait('Entrando...')
+
+            google.script.run
+              .withFailureHandler(err => {
+                toast(err.message, 'danger')
+                enable(this.loginBtn)
+              })
+              .withSuccessHandler(data => {
+                this.modal.hide()
+                document.body.classList.remove('view-login')
+                msg.hide()
+                userData = {senha: '*'.repeat(pass.length), ...data}
+                go(location.hash.slice(1) || start)
+            }).login(user, pass)
+          },
+
+          register() {
+            this.painelLogin.classList.add('d-none')
+            this.painelRegister.classList.remove('d-none')
+            this.regEmail.value = this.user.value
+          },
+
+          back() {
+            this.painelRegister.classList.add('d-none')
+            this.painelLogin.classList.remove('d-none')
+            this.user.value = this.regEmail.value
+          },
+
+          submitRegister() {
+            const nome = this.regNome.value.trim()
+            const sobrenome = this.regSobrenome.value.trim()
+            const setor = this.regSetor.value.trim()
+            const email = this.regEmail.value.trim() + '@praiaclube.org.br'
+            const senha = this.regPass.value
+
+            if (!nome || !setor || !email || !senha)
+              return this.regErr.textContent = 'Preencha todos os campos', this.regErr.classList.remove('d-none')
+
+            this.regErr.classList.add('d-none')
+            disable(this.regBtn)
+            toastWait('Registrando...')
+
+            google.script.run
+              .withFailureHandler(err => {
+                toast(err.message, 'danger')
+                this.regErr.classList.remove('d-none')
+                enable(this.regBtn)
+              })
+              .withSuccessHandler(() => {
+                this.back()
+                toast('Conta criada!', 'success')
+            }).cadastrar({nome, sobrenome, setor, email, senha})
+          }
         },
       }
+
 
       document.addEventListener('DOMContentLoaded', () => {
-        const loginTpl = document.getElementById('view-login')
-        document.body.appendChild(loginTpl.content.cloneNode(true))
-        LoginView.init()
+        if(!skipLogin){ 
+          const loginTpl = document.getElementById('view-login')
+          document.body.appendChild(loginTpl.content.cloneNode(true))
+          Control.LoginView.init()
+        }
+        else{
+          userData = {nome: "Dev", sobrenome: "da Silva", email: "aurea.ego@praiaclube.org.br", senha: "coxinha123", admin: true, setor: "Deus supremo"}
+          go(start)
+        }
       })
 
     </script>

@@ -139,17 +139,13 @@ class Eventos{
     const json = props.getProperty(this.KEY)
 
     if (!json) {
-      const inicial = { eventos: [], fixos: [] }
+      const inicial = { eventos: [] }
       props.setProperty(this.KEY, JSON.stringify(inicial))
       this._cache = inicial
       return inicial;
     }
 
     this._cache = JSON.parse(json)
-
-    if(!this._cache.fixos){
-      this._cache.fixos = []
-    }
     
     return this._cache
   }
@@ -170,7 +166,7 @@ class Eventos{
 
   static criarEvento(evento){
 
-    let {titulo, locais, datas, tipo} = evento
+    let {titulo, locais, datas, tipo, criador} = evento
 
     this._isConflited(datas, locais)
 
@@ -191,7 +187,8 @@ class Eventos{
         description: evento.obs,
         extendedProperties: {private: {
           planilhaID: evento.id,
-          tipo
+          tipo,
+          criador
         }}
       }
 
@@ -360,11 +357,102 @@ class Eventos{
   }
 }
 
+
+class Registro{
+
+  static getDB() {
+
+    if(this._cache) return this._cache
+
+    const props = PropertiesService.getScriptProperties()
+    const json = props.getProperty(this.KEY)
+
+    if (!json) {
+      const inicial = { users: {} }
+      props.setProperty(this.KEY, JSON.stringify(inicial))
+      this._cache = inicial
+      return inicial
+    }
+
+    this._cache = JSON.parse(json)
+    return this._cache
+  }
+
+  static _saveDB(db) {
+    PropertiesService.getScriptProperties().setProperty(this.KEY, JSON.stringify(db))
+    this._cache = db
+  }
+
+  static cadastrar(dados){
+
+    const {nome, sobrenome, setor, email, senha} = dados
+    const db = this.getDB()
+    const key = 'user_' + email
+
+    if(db.users[key]) throw new Error('Esse e-mail já está cadastrado')
+
+    const senhaHash = this.encode(senha)
+
+    const user = {nome, sobrenome, setor, email, senha: senhaHash, criado: new Date().toISOString(), admin: false}
+
+    db.users[key] = user
+
+    this._saveDB(db)
+  }
+
+  static login(email, senha){
+
+    const db = this.getDB()
+
+    const key = 'user_' + email
+    const dados = db.users[key]
+
+    if(!dados) throw new Error('Email não encontrado')
+
+    const senhaHash = this.encode(senha)
+
+    if(dados.senha !== senhaHash) throw new Error('Senha incorreta')
+
+    const {senha: _, ...user} = dados
+
+    return user
+  }
+
+  static alterarSenha(email, atual, nova){
+
+    const db = this.getDB()
+
+    const key = 'user_' + email
+
+    const user = db.users[key]
+
+    if(!user) throw new Error('Erro crítico: Usuário não encontrado')
+    
+    if(this.encode(atual) !== user.senha) throw new Error('Senha atual incorreta')
+
+    db.users[key].senha = this.encode(nova)
+
+    this._saveDB(db)
+  }
+
+  static encode(senha){
+    return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, senha)) 
+  }
+
+  static deleteDB(){
+    PropertiesService.getScriptProperties().deleteProperty(this.KEY)
+    this._cache = null
+  }
+}
+
 Locais.KEY = "DB_LOCAIS"
 Locais._cache = null
 
 Eventos.KEY = "DB_EVENTOS"
 Eventos._cache = null
+
+Registro.KEY = "DB_REGISTRO"
+Registro._cache = null
 
 Date.prototype.data = function(){
   return this.toLocaleDateString('pt-BR', {

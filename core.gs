@@ -3,11 +3,15 @@ function _saveDB(DB){
 }
 
 function login(user, pass){
-  return true
+  return Registro.login(user, pass)
 }
 
-function register(user){
-  return true
+function cadastrar(user){
+  Registro.cadastrar(user)
+}
+
+function alterarSenha(email, antiga, nova){
+  Registro.alterarSenha(email, antiga, nova)
 }
 
 function addEvento(evento){
@@ -39,7 +43,7 @@ function addEvento(evento){
 
     const infoEvento = [evento.id, tipo, titulo, inicio, fim, setores, quadras, obs]
 
-    _updateSheet(planilha, meses, infoEvento, tipo)
+    updateSheet(planilha, meses, infoEvento, tipo)
   }
 }
 
@@ -72,7 +76,7 @@ function updateSheet(planilha, meses, infoEvento, tipo){
 }
 
 
-function _deleteEvento(id){
+function deleteEvento(id){
 
   const planilha = SpreadsheetApp.openById(idPlanilha).getSheetByName("Eventos")
   
