@@ -16,9 +16,21 @@
     else obj.disabled = false
   }
 
+  function toggle(obj, boolean){
+    if(Array.isArray(obj)) obj.forEach(o => toggle(o, boolean))
+    else obj.disabled = !boolean
+  }
+
   function capital(str){
     str = String(str)
     return str.charAt(0).toUpperCase() + str.slice(1)
+  }
+
+  function isInside(x,y,folga = 0){
+    folga *= 60 * 1000
+    const depois = y.inicio ? new Date(y.inicio).getTime() < (new Date(x.fim).getTime() - folga + 1000) : true
+    const antes = y.fim ? new Date(x.inicio).getTime() < (new Date(y.fim).getTime() + folga - 1000) : true
+    return antes && depois
   }
 
 

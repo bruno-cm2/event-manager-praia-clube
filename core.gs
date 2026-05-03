@@ -14,6 +14,20 @@ function alterarSenha(email, antiga, nova){
   Registro.alterarSenha(email, antiga, nova)
 }
 
+function criarLocal(nome, setorId){
+  if(setorId) Locais.criarQuadra(setorId, nome)
+  else Locais.criarSetor(nome)
+}
+
+function apagarLocal(id, dev){
+  if(dev) Locais.apagarLocal(id)
+  else Locais.desativarLocal(id)
+}
+
+function renomearLocal(id, nome){
+  Locais.renomearLocal(id, nome)
+}
+
 function addEvento(evento){
 
   const {titulo, datas, tipo, locais, obs} = evento
@@ -38,7 +52,7 @@ function addEvento(evento){
       atual.setMonth(atual.getMonth() + 1)
     }
 
-    const setores = [...new Set(locais.map(l => _capital((l.tipo == 'setor'? l.nome : l.setor).replace('Complexo de ', '').replace('Complexo ', ''))))].join(', ')
+    const setores = [...new Set(locais.map(l => capital((l.tipo == 'setor'? l.nome : l.setor).replace('Complexo de ', '').replace('Complexo ', ''))))].join(', ')
     const quadras = locais.filter(l => l.tipo == 'quadra').map(l => l.nome).join(', ')
 
     const infoEvento = [evento.id, tipo, titulo, inicio, fim, setores, quadras, obs]
@@ -76,7 +90,7 @@ function updateSheet(planilha, meses, infoEvento, tipo){
 }
 
 
-function deleteEvento(id){
+function apagarEvento(id){
 
   const planilha = SpreadsheetApp.openById(idPlanilha).getSheetByName("Eventos")
   
@@ -121,7 +135,7 @@ function _isInside(x,y){
   }
 
 
-function _capital(str){
+function capital(str){
   str = String(str)
   return str.charAt(0).toUpperCase() + str.slice(1)
 }

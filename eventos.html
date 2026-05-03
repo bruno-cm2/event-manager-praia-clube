@@ -1,6 +1,15 @@
-<div class="d-flex gap-2 mb-2">
-  <input id="busca" class="form-control" placeholder="Pesquisar evento">
-  <input id="periodo" class="form-control" placeholder="Período" disabled>
+<div class="row g-2 mb-2">
+  <div class="col-6">
+    <input id="busca" class="form-control" placeholder="Pesquisar evento">
+  </div>
+  <div class="col-6">
+    <div class="dropdown">
+      <button id="periodo" class="btn btn-outline-secondary text-start dropdown-toggle w-100" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-display="static">Período</button>
+      <div class="dropdown-menu shadow-sm p-0" style="left: 50%; transform: translateX(-50%)">
+        <div id="calendario-periodo"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="d-flex gap-2 flex-grow-1">

@@ -25,9 +25,15 @@ class Locais{
   static criarSetor(nome) {
     const db = this.getDB();
 
-    if (db.setores.some(s => s.nome === nome))
+    const existente = db.setores.find(s => s.nome == nome)
+    if(existente){
+      if(existente.disabled){
+        existente.disabled = false
+        this._saveDB(db)
+        throw new Error(`Setor '${nome}' estava desabilitado e foi reativado`)
+      }
       throw new Error(`Setor '${nome}' já existe`)
-    
+    }
     const id = db.setores.map(setor => setor.id).sort((a, b) => b - a)[0] + 1 || 1
 
     db.setores.push({
@@ -42,12 +48,12 @@ class Locais{
     this._saveDB(db);
   }
 
-  static criarQuadra(setorNome, nome) {
+  static criarQuadra(setorId, nome) {
     const db = this.getDB();
-    const setor = db.setores.find(s => s.nome === setorNome)
+    const setor = db.setores.find(s => s.id === setorId)
 
     if (!setor)
-      throw new Error("Setor não encontrado");
+      throw new Error("Erro crítico: Setor da quadra não encontrado");
 
     if (setor.quadras.some(q => q.nome === nome))
       throw new Error(`Quadra '${nome}'já existe`)
@@ -66,15 +72,31 @@ class Locais{
     this._saveDB(db)
   }
 
-  static busca(id){
+  static busca(id, disabled = false){
     const db = this.getDB()
     const [idSetor, idQuadra] = String(id).split('.')
-    const setor = db.setores.find(s => s.id == idSetor)
+    const setor = db.setores.filter(l => disabled ? true : !l.disabled).find(s => s.id == idSetor)
     if(!setor) throw new Error(`Setor id '${idSetor}' não encontrado`)
     if(!idQuadra) return setor
-    const quadra = setor.quadras.find(q => q.id == id)
+    const quadra = setor.quadras.filter(l => disabled ? true : !l.disabled).find(q => q.id == id)
     if(!quadra) throw new Error(`Quadra id ${id} não encontrada`)
     return quadra
+  }
+
+  static renomearLocal(id, nome){
+    const db = this.getDB()
+    const local = this.busca(id, true)
+
+    const setor = db.setores.find(s.id == id.split('.'))
+    const tipo = local.tipo
+
+    const igual = tipo == 'setor' ? db.setores.find(s => s.nome == nome) : setor.quadras.find(q => q.nome == nome)
+
+    if(igual) throw new Error(`${capital(tipo)} com o nome '${nome}' já existe` + (igual.disabled ? ' [Desativada]' :''))
+    
+    local.nome = nome
+
+    this._saveDB(db)
   }
 
   static adicionarEvento(id, locais){
@@ -95,11 +117,38 @@ class Locais{
 
     const db = this.getDB()
 
-    local = this.busca(local)
+    local = this.busca(local, true)
     if (!local) throw new Error(`Local não encontrado: ID ${local}`)
 
     local.eventos = local.eventos.filter(e => e != id)
 
+    this._saveDB(db)
+  }
+
+  static desativarLocal(id){
+    const db = this.getDB()
+
+    const local = this.busca(id)
+    if (!local) throw new Error(`Local não encontrado: ID ${local}`)
+
+    local.disabled = true
+
+    this._saveDB(db)
+  }
+
+  static apagarLocal(id){
+    const db = this.getDB()
+
+    const local = this.busca(id)
+    if (!local) throw new Error(`Local não encontrado: ID ${local}`)
+
+    if(local.tipo == "setor"){
+      db.setores = db.setores.filter(s => s.id != id)
+    }
+    else{
+      const setor = this.busca(id.split('.')[0])
+      setor.quadras = setor.quadras.filter(q => q.id != id)
+    }
     this._saveDB(db)
   }
   
@@ -107,8 +156,8 @@ class Locais{
     return this.getDB().setores
   }
 
-  static listaQuadras(id){
-    return this.getDB().setores.find(s => s.id == id).quadras
+  static listaQuadras(setorId){
+    return this.getDB().setores.find(s => s.id == setorId).quadras
   }
 
   static deleteDB(){
@@ -483,5 +532,5 @@ Date.prototype.mes = function(){
 }
 
 Date.prototype.dia = function(){
-  return _capital(this.toLocaleDateString('pt-br', {weekday: 'long'}))
+  return capital(this.toLocaleDateString('pt-br', {weekday: 'long'}))
 }

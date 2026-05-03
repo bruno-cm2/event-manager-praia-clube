@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html>
   <head>
-
+  
     <!--  
       TODO: 
-        Terminar aba de locais,
-        Adaptar layout para mobile,
-        Cache
+        Cache,
+        Adaptar layout para mobile
     -->
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
@@ -17,12 +16,12 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css">
     <script src="https://cdn.jsdelivr.net/npm/litepicker/dist/litepicker.js"></script>
 
     <style>
-
 
       html, body{
         height: 100dvh;
@@ -39,6 +38,18 @@
 
       .nav-item{
         padding: 0 !important;
+      }
+
+      .nav-pills .nav-link{
+        border-radius: 0;
+        border: 1px solid transparent;
+        border-inline: 0 !important;
+        --bs-nav-pills-link-active-bg: #ced4da;
+      }
+
+      .nav-pills .nav-link:not(.active):hover{
+        background-color: var(--bs-light);
+        border-color: var(--bs-border-color)
       }
 
       .flatpickr-calendar{
@@ -65,26 +76,6 @@
         margin-right: 0.5rem !important;
       }
 
-      .nav-pills .nav-link{
-        border-radius: 0;
-      }
-
-      .nav-pills .nav-link{
-        border: 1px solid transparent;
-        border-inline: 0 !important;
-        --bs-nav-pills-link-active-bg: #ced4da;
-      }
-
-      .nav-pills .nav-link:not(.active):hover{
-        background-color: var(--bs-light);
-        border-color: var(--bs-border-color)
-      }
-
-      .header .bi{
-        display: inline-block;
-        padding-bottom: 0;
-      }
-
       h2{
         position: relative;
         top: 3px;
@@ -99,6 +90,22 @@
         --bs-btn-border-color: #ced4da;
       }
 
+      .dropdown-menu {
+        width: calc(100% + 2px) !important;
+        margin-left: -1px !important;
+        min-width: 0;
+      }
+
+      .input-group .dropdown-menu{
+        width: auto !important;
+        margin-left: 0 !important;
+      }
+
+      #periodo ~ .dropdown-menu {
+        width: auto !important;
+        margin-left: 0 !important;
+      }
+
       button .bi{
         margin-right: unset !important;
       }
@@ -108,6 +115,7 @@
   </head>
   <body class="container-fluid">
 
+    <!-- TEMPLATES -->
     <template id="view-login">
       <?!= HtmlService.createHtmlOutputFromFile('login').getContent() ?>
     </template>
@@ -129,6 +137,8 @@
     </template>
 
     <div class="row h-100">
+
+      <!-- SIDEBAR -->
       <aside class="col-2 shadow p-0">
         <ul class="nav nav-pills d-flex flex-column h-100">
           <img src="https://x1futsal.com.br/wp-content/uploads/2021/04/Escudo-Completo-Praia-Clube.png" class="img-fluid w-50 mx-auto mt-4 mb-4">
@@ -154,14 +164,16 @@
           </li>
         </ul>
       </aside>
-      <main class="col d-flex flex-column border rounded-3 shadow-sm bg-white m-3 p-4">
 
+      <!-- MAIN -->
+      <main class="col d-flex flex-column border rounded-3 shadow-sm bg-white m-3 p-4">
         <div class="header d-flex align-items-center border-bottom pb-1 mb-4" id="page-header"></div>
         <div id="content"></div>
-
       </main>
+
     </div>
 
+    <!-- MODAL -->
     <div class="modal fade" id="modal" tabindex="-1">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -172,14 +184,18 @@
           <div class="modal-body">
             <p id="modal-txt"></p>
           </div>
-          <div class="modal-footer border-0">
+          <div id="modal-confirm" class="d-none modal-footer border-0">
             <button type="button" id="confirm" class="btn btn-primary" data-bs-dismiss="modal">Sim</button>
             <button type="button" id="cancel" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          </div>
+          <div id="modal-alert" class="d-none modal-footer border-0">
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Ok</button>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- TOAST -->
     <div class="toast-container position-fixed bottom-0 end-0 p-4">
       <div id="toast" class="toast" role="alert">
         <div class="d-flex">
@@ -189,12 +205,17 @@
       </div>
     </div>
 
+    <!-- EDIT -->
+    <?!= HtmlService.createHtmlOutputFromFile('edit').getContent() ?>
+    
+    <!-- UTILS -->
     <?!= HtmlService.createHtmlOutputFromFile('utils').getContent() ?>
     
     <script>
 
-      const skipLogin = true
-      const start = 'locais'
+      const skipLogin = false
+      const start = 'eventos'
+      let dev = false
 
       const EV = <?!= JSON.stringify(ev) ?>;
       const LC = <?!= JSON.stringify(lc) ?>;
@@ -224,7 +245,7 @@
           a.classList.toggle('active', a.getAttribute('href') === `#${page}`)
         })
 
-        const control = Control[`${capital(page)}View`]
+        const control = Control[capital(page)]
 
         mainHeader.innerHTML = control.header
         content.classList = `col-${control.size} d-flex flex-column flex-grow-1`
@@ -245,51 +266,70 @@
 
       let userData
 
-      const textMsg = document.getElementById("toast")
-      let msg = new bootstrap.Toast(textMsg, {autohide: true, delay: 3000})
-
-      function toast(text, cor = 'warning') {
-
-        text = text.replace('Error: ', '')
-
-        textMsg.classList = `toast align-items-center border-0 text-bg-${cor}`
-        textMsg.querySelector('.toast-body').innerHTML = text
-        msg = bootstrap.Toast.getOrCreateInstance(textMsg, {autohide: true, delay: 3000})
-        msg.show()
-      }
+      const toastMsg = document.getElementById("toast")
+      let msg = new bootstrap.Toast(toastMsg, {autohide: true, delay: 3000})
 
       const textModal = document.getElementById('modal-txt')
       const modalEl = document.getElementById('modal')
       const modal = new bootstrap.Modal(modalEl)
       const confirmBtn = document.getElementById('confirm')
       const cancelBtn = document.getElementById('cancel')
+      const modalAlertBtns = document.getElementById('modal-alert')
+      const modalConfirmBtns = document.getElementById('modal-confirm') 
+
+
+      function toast(text, cor = 'warning') {
+
+        text = text.replace('Error: ', '')
+
+        toastMsg.classList = `toast align-items-center border-0 text-bg-${cor}`
+        toastMsg.querySelector('.toast-body').innerHTML = text
+        msg = bootstrap.Toast.getOrCreateInstance(toastMsg, {autohide: true, delay: 3000})
+        msg.show()
+      }
+
+      function toastWait(text, errors = null){
+        toastMsg.classList = `toast align-items-center border-0 text-bg-light`
+        const body = toastMsg.querySelector('.toast-body')
+        body.innerHTML = `
+          <div class="d-flex align-items-center gap-2">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <span>${text}</span>
+            <span class="badge text-bg-danger ms-2${errors ? '' : ' d-none'}">${errors} ${errors > 1 ? 'erros' : 'erro'}</span>
+          </div>
+        `
+        msg = bootstrap.Toast.getOrCreateInstance(toastMsg, {autohide: false})
+        msg.show()
+      }
+
+      function alert(text, onclose = null){
+        modalAlertBtns.classList.remove('d-none')
+        textModal.innerHTML = text
+        modalEl.addEventListener('hidden.bs.modal', () => {
+          modalAlertBtns.classList.add('d-none')
+          if(onclose) onclose()
+        }, {once: true})
+        modal.show()
+      }
 
       async function confirm(text){
-        textModal.textContent = text
+        modalConfirmBtns.classList.remove('d-none')
+        textModal.innerHTML = text
         return new Promise((resolve) => {
           confirmBtn.onclick = () => resolve(true)
           cancelBtn.onclick = () => resolve(false)
 
-          modalEl.addEventListener('hidden.bs.modal', () => resolve(false), { once: true })
+          modalEl.addEventListener('hidden.bs.modal', () => {
+            modalConfirmBtns.classList.add('d-none')
+            resolve(false)
+          }, {once: true})
           modal.show()
         })
-      }
-
-      function toastWait(text, cor = 'light'){
-        textMsg.classList = `toast align-items-center border-0 text-bg-${cor}`
-        textMsg.querySelector('.toast-body').innerHTML = `
-          <div class="d-flex align-items-center gap-2">
-            <div class="spinner-border spinner-border-sm" role="status"></div>
-            <span>${text}</span>
-          </div>
-        `
-        msg = bootstrap.Toast.getOrCreateInstance(textMsg, {autohide: false})
-        msg.show()
       }
       
       const Control = {
 
-        AddView: {
+        Add: {
 
           header: '<i class="bi bi-pencil-fill text-primary bi-underline" style="border-bottom: 1.5px solid currentColor; line-height: 1; font-size: 1.4rem;"></i><h2>Criar Evento</h2>',
 
@@ -330,22 +370,43 @@
             this.submitBtn = document.getElementById('submit-btn')
           },
 
-          bind() {
+          bind(){
             this.buscaLocais.oninput = () => this.renderListaLocais(this.buscaLocais.value)
-            this.addBtn.onclick = () => this.renderDatas()
+            this.addBtn.onclick = () => this.addData()
             this.reverseBtn.onclick = () => this.reverseDates()
             this.submitBtn.onclick = () => this.addEvent()
+          },
+
+          cache(eventCache){
+            const {titulo, tipo, datas, locais, obs} = eventCache
+
+            this.titulo.value = titulo || ''
+
+            if(tipo){
+              this.tipoBtn.textContent = tipo
+              this.tipoBtn.classList.replace('btn-outline-secondary', `btn-${TIPOS[tipo].button}`)
+            }
+
+            if(datas.length) datas.forEach(d => this.renderData(d))
+
+            this.locaisSel = locais.map(l => this.getLocal(l))
+            if(this.locaisSel.length) {
+              this.renderListaLocais()
+              this.renderSelecionados()
+            }
+
+            this.obsInput.value = typeof obs == 'string' ? obs : ''
           },
 
           renderListaLocais(filtro = '') {
             this.listaLocais.innerHTML = ''
             const termo = filtro
 
-            const setores = this.db.setores.filter(s => s.ativo).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+            const setores = this.db.setores.filter(s => !s.disabled).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 
             setores.forEach(setor => {
               if (!setor.nome.toLowerCase().includes(termo.toLowerCase()) &&
-                  !setor.quadras.some(q => q.ativo && q.nome.toLowerCase().includes(termo.toLowerCase()))) return
+                  !setor.quadras.some(q => !q.disabled && q.nome.toLowerCase().includes(termo.toLowerCase()))) return
 
               // setores
               const header = document.createElement('div')
@@ -356,7 +417,7 @@
               this.listaLocais.appendChild(header)
 
               // quadras
-              setor.quadras.filter(q => q.ativo && q.nome.toLowerCase().includes(termo)).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR')).forEach(q => {
+              setor.quadras.filter(q => !q.disabled && q.nome.toLowerCase().includes(termo)).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR')).forEach(q => {
                 const item = document.createElement('div')
                 item.className = 'dropdown-item rounded p-0 ps-3'
                 item.id = q.id
@@ -403,7 +464,7 @@
           renderCalendar() {
 
             flatpickr("#calendario-inicio", {
-              locale: "pt",
+              locale: flatpickr.l10ns.pt,
               inline: true,
               enableTime: true,
               time_24hr: true,
@@ -416,7 +477,7 @@
             })
 
             flatpickr("#calendario-fim", {
-              locale: "pt",
+              locale: flatpickr.l10ns.pt,
               inline: true,
               enableTime: true,
               time_24hr: true,
@@ -429,7 +490,7 @@
             })
           },
 
-          renderDatas() {
+          addData() {
             if(!this.inicio.dataset.date) return toast('Selecione uma data de início', 'warning')
             if(!this.fim.dataset.date) return toast('Selecione uma data de fim', 'warning')
     
@@ -450,12 +511,19 @@
 
             const folga = 30
 
-            if(datas.some(d => this.isInside(date, d))) return toast('Essa data já foi escolhida', 'warning')
-            if(datas.some(d => this.isInside(date, d, folga))) return toast(`No mínimo ${folga} minutos de folga entre datas`, 'warning')
+            if(datas.some(d => isInside(date, d))) return toast('Essa data já foi escolhida', 'warning')
+            if(datas.some(d => isInside(date, d, folga))) return toast(`No mínimo ${folga} minutos de folga entre datas`, 'warning')
 
-            const longo = intervalo >= 24 * 60 * 60 * 1000
-            const shortFormat = this.inicio.textContent + ' até ' + this.fim.textContent.split(' às ')[1]
-            const longFormat = this.inicio.textContent + ' até ' + this.fim.textContent
+            this.renderData(date)
+          },
+
+          renderData(date){
+            const inicio = new Date(date.inicio)
+            const fim = new Date(date.fim)
+
+            const longo = fim - inicio >= 24 * 60 * 60 * 1000
+            const shortFormat = inicio.datahora() + ' até ' + fim.hora()
+            const longFormat = inicio.datahora() + ' até ' + fim.datahora()
 
             const btn = document.createElement('button')
             btn.className = 'btn btn-sm align-items-center rounded-2 gap-1 mt-1'
@@ -513,16 +581,20 @@
             })
           },
 
-          isInside(x,y,folga = 0){
-            folga *= 60 * 1000
-            return new Date(x.inicio).getTime() < (new Date(y.fim).getTime() + folga - 1000) && new Date(y.inicio).getTime() < (new Date(x.fim).getTime() - folga + 1000)
-          },
-
           getDates(){
             return [...this.datasSelecionadas.querySelectorAll('button')]
           },
 
-          addEvent(){
+          getLocal(localId){
+            const [idSetor, idQuadra] = String(localId).split('.')
+            const setor = this.db.setores.find(s => s.id == idSetor)
+            if(!idQuadra) return setor
+            const quadra = setor.quadras.find(q => q.id == id)
+            return quadra
+          },
+
+          buildEvento(){
+
             const titulo = this.titulo.value
             if(!titulo || titulo.length <= 2) return toast('Escolha um título', 'warning')
 
@@ -532,7 +604,7 @@
             let buttons = this.getDates()
 
             if(!buttons || buttons.length == 0){
-              this.renderDatas()
+              this.addData()
               buttons = this.getDates()
               if(!buttons || buttons.length == 0) return
             }
@@ -546,7 +618,12 @@
 
             const {nome, sobrenome, email} = userData
 
-            const evento = {titulo, tipo, datas, locais, obs, criador: {nome: nome + ' ' + sobrenome, email}}
+            return {titulo, tipo, datas, locais, obs, criador: {nome: nome + ' ' + sobrenome, email}}
+          },
+
+          addEvent(){
+            
+            const evento = this.buildEvento()
 
             disable(this.submitBtn)
 
@@ -563,13 +640,85 @@
               }
               enable(this.submitBtn)
             }).withSuccessHandler(() => {
-              toast('Adicionado', 'primary')
+              toast('Adicionado', 'success')
               refresh('add')
             }).addEvento(evento)
           }
         },
+
+        Edit: {
+
+          header: `
+          <i class="bi bi-pencil-fill text-warning bi-underline" style="border-bottom: 1.5px solid currentColor; line-height: 1; font-size: 1.4rem;"></i>
+          <h2>Editar Evento</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>`
+          ,
+
+          init(ev){
+            this.getDOM()
+            this.bind()
+            this.evento = ev
+
+            Control.Add.init()
+            Control.Add.cache(ev)
+
+            this.modal.show()
+          },
+
+          getDOM(){
+            this.modalHeader = document.getElementById('edit-header')
+            this.modalHeader.innerHTML = this.header
+
+            this.body = document.getElementById('edit-body')
+            this.addTpl = document.getElementById('view-add')
+            this.body.innerHTML = ''
+            this.body.appendChild(this.addTpl.content.cloneNode(true))
+
+            this.submit = document.getElementById('submit')
+            this.submit.classList.replace('d-flex', 'd-none')
+
+            this.confirmBtn = document.getElementById('edit-confirm')
+            this.cancelBtn = document.getElementById('edit-cancel')
+            this.modal = new bootstrap.Modal(document.getElementById('modal-edit'))
+          },
+
+          bind(){
+            this.confirmBtn.onclick = () => this.salvar()
+            this.cancelBtn.onclick = () => this.modal.hide()
+          },
+
+          salvar(){
+
+            const id = this.evento.id
+            if(!id) return toast('Erro crítico: não foi possível encontrar o id do evento', 'danger')
+            
+            const {criador: _, ...evento} = Control.Add.buildEvento()
+            evento.id = id
+
+            const buttons = [this.confirmBtn, this.cancelBtn]
+
+            disable(buttons)
+
+            toastWait("Salvando alterações...")
+
+            google.script.run.withFailureHandler(err => {
+              try{
+                err = JSON.parse(err.message || err)
+                this.showError(err.locais)
+                toast(err.message, 'danger')
+              }
+              catch(e){
+                toast(err.message, 'danger')
+              }
+              enable(buttons)
+            }).withSuccessHandler(() => {
+              toast('Alterações salvas', 'success')
+              refresh('eventos')
+            }).addEvento(evento)
+          },
+        },
         
-        EventosView: {
+        Eventos: {
 
           header: '<i class="bi bi-calendar2-event-fill text-success" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Lista de Eventos</h2>',
 
@@ -577,7 +726,9 @@
 
           getDOM() {
             this.busca   = document.getElementById('busca')
-            this.periodo = document.getElementById('periodo')
+            this.datas = null
+            this.periodoBtn = document.getElementById('periodo')
+            this.calendar = document.getElementById('calendario-periodo')
             this.lista   = document.getElementById('eventos')
             this.config  = document.getElementById('config')
             this.criados = document.getElementById('criados')
@@ -592,8 +743,8 @@
             this.criados.onchange = () => this.filtrar()
 
             this.lista.onchange = () => {
-              [this.editBtn, this.delBtn].forEach((userData.admin) ? enable : disable)
               this.renderConfig()
+              toggle([])
             }
             this.addBtn.onclick  = () => location.hash = 'add'
             this.editBtn.onclick = () => this.editar()
@@ -605,16 +756,9 @@
             this.dbLocais = LC
             this.eventos = this.db.eventos.slice().sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'))
             this.getDOM()
-            this.bind();
-            [this.editBtn, this.delBtn].forEach(userData.admin ? enable : disable)
+            this.bind()
             this.renderLista()
-            flatpickr(this.periodo, {
-              mode: "range",
-              dateFormat: "Y-m-d",
-              locale: "pt",
-              allowInput: true,
-              onChange: () => this.filtrar()
-            })
+            this.renderCalendar()
           },
 
           renderLista(arr = this.eventos) {
@@ -622,6 +766,7 @@
 
             if (!arr.length) {
               this.lista.innerHTML = `<option disabled>Nenhum evento</option>`
+              this.renderConfig()
               return
             }
 
@@ -640,13 +785,17 @@
             const id = this.lista.value
             const ev = this.db.eventos.find(e => e.id == id)
 
-            this.config.innerHTML = ''
-            if (!ev) return
-
             const email = userData.email
             const nome = email.split('@')[0].split('.').map(p => capital(p)).join(' ')
+            const admin = (ev && (ev.criador?.email == email || ev.criador === email || ev.criador == nome || userData.admin))
 
-            if(ev.criador?.email == email || ev.criador === email || ev.criador == nome) [this.editBtn, this.delBtn].forEach(enable)
+            toggle([this.editBtn, this.delBtn], admin)
+
+            this.config.innerHTML = ''
+            if (!ev) {
+              this.config.innerHTML = '<option disabled>Nenhum evento selecionado</option>'
+              return
+            }
 
             const ordem = ['criador', 'locais', 'datas', 'tipo', 'id', 'serverID']
 
@@ -666,7 +815,7 @@
                   const setor = LC.setores.find(lc => lc.id == l.split('.')[0])
                   const quadra = setor.quadras.find(lc => lc.id === l)
 
-                  return quadra ? `${setor.nome} - ${quadra.nome}` : setor.nome
+                  return (quadra ? `${setor.nome} - ${quadra.nome}` : setor.nome) + (quadra?.disabled || setor.disabled ? ' [Inativo]' : '')
                 }).sort((a, b) => a.localeCompare(b, 'pt-BR')).join('\n')
                 v = [...new Set(v.map(l => LC.setores.find(lc => lc.id == l.split('.')[0]).nome))].sort((a, b) => a.localeCompare(b, 'pt-BR')).join(', ')
               }
@@ -692,47 +841,71 @@
             const termo = this.busca.value.toLowerCase()
             const filtrados = this.eventos.filter(e => {
 
+              const periodo = this.datas?.inicio ? e.datas.some(d => isInside(d, this.datas)) : true
+
               const pesquisa = e.titulo.toLowerCase().includes(termo) || String(e.id).includes(termo)
               const email = userData.email
               const nome = email.split('@')[0].split('.').map(p => capital(p)).join(' ')
               const criados = this.criados.checked
               const meusEventos = criados ? (e.criador?.email == email || e.criador === email || e.criador == nome) : true
 
-              return pesquisa && meusEventos
-          })
+              return pesquisa && meusEventos && periodo
+            })
             this.renderLista(filtrados)
           },
 
-          editar() {
-            const ev = this.getSelecionado()
-            if (!ev) return
-            google.script.run._atualizarEvento(ev)
+          renderCalendar(){
+            flatpickr(this.calendar, {
+              inline: true,
+              locale: flatpickr.l10ns.pt,
+              mode: "range",
+              dateFormat: "d/m",
+              onChange: (selectedDates, dateStr) => {
+                this.periodoBtn.textContent = `Período: ${dateStr}`
+                this.periodoBtn.classList.replace('btn-outline-secondary', 'btn-secondary')
+                const [inicio, fim] = selectedDates.map(d=> d?.toISOString())
+                this.datas = {inicio, fim}
+                this.filtrar()
+                }
+            })
+          },
+
+          editar(){
+            const ev = this.db.eventos.find(e => e.id == this.lista.value)
+            if(!ev) return toast('Erro ao acessar o evento', 'danger')
+            Control.Edit.init(ev)
           },
 
           async apagar() {
-            const ev = this.getSelecionado()
-            if (!ev) return
-            if (!await confirm(`Apagar o evento ${ev.titulo}?`)) return
+            const options = [...this.lista.selectedOptions]
+            const response = await confirm(`
+              Deseja apagar esses eventos?
+              <div class="mt-2 p-1 px-2 border rounded border-secondary text-start" style="width: fit-content">${options.map(o => o.text).join('<br>')}</span>
+              `)
 
-            toastWait('Apagando evento...')
-
-            google.script.run
-              .withFailureHandler(err => toast(err.message, 'danger'))
-              .withSuccessHandler(() => {
-                this.db.eventos = this.db.eventos.filter(e => e.id != ev.id)
-                this.eventos = this.db.eventos.slice().sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'))
-                toast('Evento apagado', 'primary')
-                this.renderLista()
-              })
-              .deleteEvento(ev.id)
-          },
-
-          getSelecionado() {
-            return this.db.eventos.find(e => e.id == this.lista.value)
+            if(response){
+              errors = []
+              await Promise.all(options.map(o => new Promise((resolve) => {
+                toastWait(`Apagando ${o.text}...` , errors.length)
+                google.script.run
+                  .withFailureHandler(err => {
+                    errors.push(o.text + ': ' + err.message)
+                    resolve()
+                  })
+                  .withSuccessHandler(() => resolve())
+                  .apagarEvento(o.value, dev)
+              })))
+              
+              if(errors.length) alert('Os seguintes eventos não foram apagados:\n' + errors.join('\n'), () => refresh('eventos'))
+              else{
+                toast('Eventos apagados', 'success')
+                refresh('eventos')
+              }
+            }
           }
         },
 
-        LocaisView:{
+        Locais:{
 
           header: '<i class="bi bi-geo-alt-fill text-danger" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Lista de Setores</h2>',
 
@@ -744,6 +917,7 @@
             this.bind()
             this.renderSetores()
             this.renderQuadras()
+            this.listaSetores.focus()
           },
 
           getDOM(){
@@ -756,18 +930,76 @@
             this.editBtn  = document.getElementById('edit-btn')
             this.delBtn   = document.getElementById('del-btn')
 
+            this.buttons = [this.addBtn, this.editBtn, this.delBtn]
+
+            this.control1 = document.getElementById('control-1')
+            this.control2 = document.getElementById('control-2')
             this.changeIpt  = document.getElementById('change')
+            this.confirm   = document.getElementById('confirm')
+            this.cancel  = document.getElementById('cancel')
           },
 
           bind(){
             this.busca.oninput = () => this.renderSetores()
             this.listaSetores.onchange = () => this.renderQuadras()
             this.listaSetores.addEventListener("keydown", e => {
-              if(e.key == "ArrowRight") this.listaQuadras.focus()
+              switch (e.key) {
+                case 'ArrowRight':
+                  this.listaQuadras.focus()
+                  break;
+
+                case 'a':
+                  this.addBtn.click()
+                  break;
+
+                case 'r':
+                 this.editBtn.click()
+                 break;
+                
+                case 'delete':
+                case 'backspace':
+                  this.delBtn.click()
+                  break;
+              }
             })
+            
             this.listaQuadras.addEventListener("keydown", e => {
-              if(e.key == "ArrowLeft") this.listaSetores.focus()
+              switch (e.key) {
+                case 'ArrowLeft':
+                  this.listaQuadras.focus()
+                  break;
+
+                case 'a':
+                  this.addBtn.click()
+                  break;
+
+                case 'r':
+                 this.editBtn.click()
+                 break;
+                
+                case 'delete':
+                case 'backspace':
+                  this.delBtn.click()
+                  break;
+              }
             })
+
+            this.listaSetores.addEventListener('focusin', () => {
+              this.listaSetores.classList.add('focus')
+              this.listaQuadras.classList.remove('focus')
+            })
+
+            this.listaQuadras.addEventListener('focusin', () => {
+              this.listaQuadras.classList.add('focus')
+              this.listaSetores.classList.remove('focus')
+            })
+
+            this.changeIpt.addEventListener('input', () => {toggle(this.confirm, this.changeIpt.value.trim().length)})
+            this.changeIpt.addEventListener('keydown', e =>{if(e.key == 'Enter') this.confirm.click()})
+            this.changeIpt.addEventListener('keydown', e =>{if(e.key == 'Escape') this.cancel.click()})
+            this.addBtn.onclick = () => this.adicionar()
+            this.editBtn.onclick = () => this.renomear()
+            this.delBtn.onclick = () => this.apagar()
           },
 
           filtrar(locais, termo) {
@@ -782,7 +1014,7 @@
           },
 
           renderSetores(){
-            const setores = this.filtrar(this.db.setores.slice(), this.busca.value).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+            const setores = this.filtrar(this.db.setores.slice(), this.busca.value).filter(s => !s.disabled).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
             this.listaSetores.innerHTML = ''
 
             if (!setores.length) {
@@ -802,11 +1034,12 @@
           },
 
           renderQuadras(){
-            const setor = this.db.setores.slice().find(s => s.id === this.listaSetores.value)
-            const quadras = this.filtrar(setor.quadras, this.busca2.value).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR'))
+            const setor = this.db.setores.find(s => s.id === this.listaSetores.value && !s.disabled)
+            if (!setor) return
+            const quadras = this.filtrar(setor.quadras, this.busca2.value).filter(q => !q.disabled).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR'))
             this.listaQuadras.innerHTML = ''
 
-            if (!quadras || !quadras.length) {
+            if (!quadras || !quadras.length){
               this.listaQuadras.innerHTML = `<option disabled>Nenhuma quadra</option>`
               return
             }
@@ -819,11 +1052,125 @@
             })
 
             this.listaQuadras.selectedIndex = 0
-          }
+          },
+
+          adicionar(){
+            const isSetor = this.listaSetores.classList.contains('focus')
+  
+            this.control1.classList.replace('d-flex', 'd-none')
+            this.control2.classList.replace('d-none', 'd-flex')
+
+            disable(this.buttons)
+
+            this.changeIpt.focus()
+            this.changeIpt.placeholder = isSetor ? "Novo setor" : "Nova quadra"
+
+            const setorId = isSetor ? null : this.listaSetores.value
+
+            this.cancel.onclick = () => this.back()
+
+            this.confirm.textContent = 'Adicionar'
+            this.confirm.onclick = () => {
+              const nome = (dev ? ['Teste'] : '') + this.changeIpt.value;
+              disable([this.confirm, this.cancel, this.changeIpt])
+              toastWait('Adicionando...')
+              google.script.run
+                .withFailureHandler(err => {
+                  toast(err.message, 'danger')
+                  this.back()
+                }).withSuccessHandler(() => {
+                  toast('Adicionado', 'success')
+                  refresh('locais')
+                }).criarLocal(nome, setorId)
+            }
+          },
+
+          renomear(){
+            const isSetor = this.listaSetores.classList.contains('focus')
+  
+            this.control1.classList.replace('d-flex', 'd-none')
+            this.control2.classList.replace('d-none', 'd-flex')
+
+            disable(this.buttons)
+
+            const select = isSetor ? this.listaSetores : this.listaQuadras
+
+            const id = select.value
+            const nome = select.selectedOptions[0].textContent
+
+            this.changeIpt.focus()
+            this.changeIpt.value = nome
+            this.changeIpt.placeholder = nome
+
+            disable([this.listaSetores, this.listaQuadras])
+
+            const func = () => {toggle(this.confirm, this.changeIpt.value && this.changeIpt.value != nome)}
+            this.changeIpt.addEventListener('input', func)
+            disable(this.confirm)
+
+            this.cancel.onclick = () => {
+              this.back()
+              this.changeIpt.removeEventListener('input', func)
+            }
+            this.confirm.textContent = 'Salvar'
+            this.confirm.onclick = () => {
+              disable([this.confirm, this.cancel, this.changeIpt])
+              toastWait('Renomeando...')
+              google.script.run
+                .withFailureHandler(err => {
+                  toast(err.message, 'danger')
+                  this.changeIpt.removeEventListener('input', func)
+                  this.back()
+                }).withSuccessHandler(() => {
+                  toast('Renomeado', 'success')
+                  refresh('locais')
+                }).renomearLocal(id, nome)
+            }
+          },
+
+          async apagar(){
+            const isSetor = this.listaSetores.classList.contains('focus')
+
+            const options = [...(isSetor ? this.listaSetores.selectedOptions : this.listaQuadras.selectedOptions)]
+            const setorId = isSetor ? this.listaSetores.value : null
+            
+            const response = await confirm(`
+            Deseja apagar ${(isSetor ? 'esses setores?' : 'essas quadras?')}
+            <div class="mt-2 p-1 px-2 border rounded border-secondary text-start" style="width: fit-content">${options.map(o => o.text).join('<br>')}</span>
+            `)
+
+
+            if(response){
+              const errors = []
+  
+              await Promise.all(options.map(o => new Promise((resolve) => {
+                toastWait(`Apagando ${o.text}...`, errors.length)
+                google.script.run
+                  .withFailureHandler(err => {
+                    errors.push(o.text + ': ' + err.message)
+                    resolve()
+                  })
+                  .withSuccessHandler(() => resolve())
+                  .apagarLocal(o.value, dev)
+              })))
+
+              if(errors.length) alert('Os seguintes locais não foram apagados:\n' + errors.join('\n'), () => refresh('locais'))
+              else{
+                toast('Locais apagados', 'success')
+                refresh('locais')
+              }
+            }
+          },
+
+          back(){
+            enable([this.confirm, this.cancel, this.changeIpt, this.listaSetores, this.listaQuadras])
+            this.control1.classList.replace('d-none', 'd-flex')
+            this.control2.classList.replace('d-flex', 'd-none')
+          },
 
         },
 
-        PassView: {
+        Pass: {
           init(tpl){
             this.getDOM(tpl)
             this.bind()
@@ -851,7 +1198,7 @@
           }
         },
 
-        AccountView: {
+        Account: {
 
           header: '<i class="bi bi-person-circle text-dark" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Conta</h2>',
 
@@ -860,7 +1207,7 @@
           init(){
             this.getDOM()
             this.bind()
-            Control.PassView.init(document.body)
+            Control.Pass.init(document.body)
           },
 
           getDOM(){
@@ -881,7 +1228,7 @@
           },
 
           bind(){
-            try{const {nome, sobrenome, email, setor, senha} = userData
+            const {nome, sobrenome, email, setor, senha} = userData
             this.nome.value = nome
             this.sobrenome.value = sobrenome
             this.setor.value = setor
@@ -889,7 +1236,7 @@
             this.senha.value = senha
             this.changeBtn.onclick = () => this.changePass()
             this.saveBtn.onclick = () => this.submitPass()
-            this.cancelBtn.onclick = () => this.back()}catch(e){toast(e)}
+            this.cancelBtn.onclick = () => this.back()
           },
 
           changePass(){
@@ -929,12 +1276,12 @@
           }
         },
 
-        LoginView: {
+        Login: {
 
           init() {
             this.getDOM()
             this.bind()
-            Control.PassView.init(document.body)
+            Control.Pass.init(document.body)
             this.modal = new bootstrap.Modal(document.getElementById('modal-login'), {
               backdrop: 'static',
               keyboard: false
@@ -1049,11 +1396,12 @@
         if(!skipLogin){ 
           const loginTpl = document.getElementById('view-login')
           document.body.appendChild(loginTpl.content.cloneNode(true))
-          Control.LoginView.init()
+          Control.Login.init()
         }
         else{
           userData = {nome: "Dev", sobrenome: "da Silva", email: "aurea.ego@praiaclube.org.br", senha: "coxinha123", admin: true, setor: "Deus supremo"}
           go(start)
+          dev = true
         }
       })
 

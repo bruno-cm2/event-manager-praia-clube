@@ -1,3 +1,11 @@
+<style>
+  select.focus {
+    outline: 0;
+    box-shadow: 0 0 0 0.15rem rgba(var(--bs-primary-rgb), 0.50);
+  }
+</style>
+
+
 <div class="d-flex gap-2">
   <input id="busca" class="form-control mb-2" placeholder="Pesquisar setor">
   <input id="busca2" class="form-control mb-2" placeholder="Pesquisar quadra">
@@ -8,11 +16,15 @@
   <select id="quadras" class="form-select h-100" multiple></select>
 </div>
 
-<div class="mt-2 d-flex gap-2 align-items-center">
-  <input id="change" class="form-control" style="width: calc(50% - 0.25rem)" hidden>
-  <div class="d-flex gap-2 ms-auto">
+<div class="mt-2">
+  <div id="control-1" class="d-flex gap-2 justify-content-end">
     <button id="add-btn" class="btn btn-primary">Adicionar</button>
-    <button id="edit-btn" class="btn btn-secondary">Editar</button>
+    <button id="edit-btn" class="btn btn-secondary">Renomear</button>
     <button id="del-btn" class="btn btn-danger">Apagar</button>
+  </div>
+  <div id="control-2" class="d-none gap-2 justify-content-end">
+    <input id="change" class="form-control" style="width: calc(50% - 0.25rem)">
+    <button id="confirm" class="btn btn-primary ms-auto"></button>
+    <button id="cancel" class="btn btn-secondary">Cancelar</button>
   </div>
 </div>
