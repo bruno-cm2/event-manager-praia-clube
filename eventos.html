@@ -1,8 +1,8 @@
-<div class="row g-2 mb-2">
-  <div class="col-6">
+<div class="row gap-2 mb-2">
+  <div class="col-6 pe-0">
     <input id="busca" class="form-control" placeholder="Pesquisar evento">
   </div>
-  <div class="col-6">
+  <div class="col ps-0">
     <div class="dropdown">
       <button id="periodo" class="btn btn-outline-secondary text-start dropdown-toggle w-100" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-bs-display="static">Período</button>
       <div class="dropdown-menu shadow-sm p-0" style="left: 50%; transform: translateX(-50%)">
@@ -13,8 +13,10 @@
 </div>
 
 <div class="d-flex gap-2 flex-grow-1">
-  <select id="eventos" class="form-select h-100" multiple></select>
-  <select id="config" class="form-select h-100" multiple></select>
+  <div class="col-6 border rounded" id="eventos"></div>
+  <div class="col border rounded" id="config"></div>
+  <!-- <select id="eventos" class="form-select h-100" multiple></select>
+  <select id="config" class="form-select h-100" multiple></select> -->
 </div>
 
 <div class="mt-2 d-flex align-items-center">

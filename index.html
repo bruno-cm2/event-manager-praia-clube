@@ -213,7 +213,7 @@
     
     <script>
 
-      const skipLogin = false
+      const skipLogin = true
       const start = 'eventos'
       let dev = false
 
@@ -329,6 +329,17 @@
       
       const Control = {
 
+        lc: LC,
+        ev: EV,
+
+        getLocal(localId){
+          const [idSetor, idQuadra] = String(localId).split('.')
+          const setor = Control.lc.setores.find(s => s.id == idSetor)
+          if(!idQuadra) return setor
+          const quadra = setor.quadras.find(q => q.id == idQuadra)
+          return quadra
+        },
+
         Add: {
 
           header: '<i class="bi bi-pencil-fill text-primary bi-underline" style="border-bottom: 1.5px solid currentColor; line-height: 1; font-size: 1.4rem;"></i><h2>Criar Evento</h2>',
@@ -336,8 +347,7 @@
           size: '7',
 
           init() {
-            
-            this.db = LC
+
             this.CACHE = CACHE
             this.locaisSel = []
 
@@ -402,7 +412,7 @@
             this.listaLocais.innerHTML = ''
             const termo = filtro
 
-            const setores = this.db.setores.filter(s => !s.disabled).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+            const setores = Control.lc.setores.filter(s => !s.disabled).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 
             setores.forEach(setor => {
               if (!setor.nome.toLowerCase().includes(termo.toLowerCase()) &&
@@ -585,14 +595,6 @@
             return [...this.datasSelecionadas.querySelectorAll('button')]
           },
 
-          getLocal(localId){
-            const [idSetor, idQuadra] = String(localId).split('.')
-            const setor = this.db.setores.find(s => s.id == idSetor)
-            if(!idQuadra) return setor
-            const quadra = setor.quadras.find(q => q.id == id)
-            return quadra
-          },
-
           buildEvento(){
 
             const titulo = this.titulo.value
@@ -752,9 +754,7 @@
           },
 
           init() {
-            this.db = EV
-            this.dbLocais = LC
-            this.eventos = this.db.eventos.slice().sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'))
+            this.eventos = Control.ev.eventos.slice().sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'))
             this.getDOM()
             this.bind()
             this.renderLista()
@@ -783,7 +783,7 @@
 
           renderConfig() {
             const id = this.lista.value
-            const ev = this.db.eventos.find(e => e.id == id)
+            const ev = Control.ev.eventos.find(e => e.id == id)
 
             const email = userData.email
             const nome = email.split('@')[0].split('.').map(p => capital(p)).join(' ')
@@ -791,50 +791,85 @@
 
             toggle([this.editBtn, this.delBtn], admin)
 
-            this.config.innerHTML = ''
             if (!ev) {
-              this.config.innerHTML = '<option disabled>Nenhum evento selecionado</option>'
+              this.config.innerHTML = '<option disabled>Nenhum evento selecionado</option>  '
               return
             }
 
-            const ordem = ['criador', 'locais', 'datas', 'tipo', 'id', 'serverID']
+            const titulo = `<h6 class="fw-bold">${ev.titulo}</h6>`
+            const tipo = `<span class="badge text-bg-${TIPOS[ev.tipo].button} mb-3">${ev.tipo}</span>`
+            const datas = `
+            <p class="fw-semibold mb-1">Datas</p>
+            ${ev.datas.map((d, i) => {
+                const inicio = new Date(d.inicio)
+                const fim = new Date(d.fim)
+                const longo = fim - inicio >= 24 * 60 * 60 * 1000
+                return (`
+                  <div key=${i} class="small mb-1">
+                    • ${inicio.datahora()} até ${longo ? fim.datahora() : fim.hora()}
+                  </div>
+                `)
+              })}`
 
-            Object.entries(ev).sort((a, b) => ordem.indexOf(a[0]) - ordem.indexOf(b[0])).forEach(([k, v]) => {
+            const locais = `
+            <p class="fw-semibold mt-3 mb-1">Locais</p>
+              ${ev.locais.map((l, i) => (
+                `<div key=${i} class="small">• ${Control.getLocal(l)?.nome || l}</div>`
+              ))}`
 
-              if (k === 'obs' || k === 'titulo') return
+            const criador = `
+              <p class="fw-semibold mt-3 mb-1">Criador</p>
+              <p class="small">
+                ${typeof ev.criador === 'object' ? ev.criador.nome : ev.criador}
+              </p>
+            `
 
-              const opt = document.createElement('option')
+            this.config.innerHTML = `
+            ${titulo}
+            ${tipo}
+            ${datas}
+            ${locais}
+            `
 
-              if (k === 'criador'){
-                if(v.nome) v = v.nome
-                if(v.includes('@')) v = v.split('@')[0].split('.').map(p => capital(p)).join(' ')
-              } 
 
-              if (k === 'locais') {
-                opt.title = v.map(l => {
-                  const setor = LC.setores.find(lc => lc.id == l.split('.')[0])
-                  const quadra = setor.quadras.find(lc => lc.id === l)
+            // const ordem = ['criador', 'locais', 'datas', 'tipo', 'id', 'serverID
 
-                  return (quadra ? `${setor.nome} - ${quadra.nome}` : setor.nome) + (quadra?.disabled || setor.disabled ? ' [Inativo]' : '')
-                }).sort((a, b) => a.localeCompare(b, 'pt-BR')).join('\n')
-                v = [...new Set(v.map(l => LC.setores.find(lc => lc.id == l.split('.')[0]).nome))].sort((a, b) => a.localeCompare(b, 'pt-BR')).join(', ')
-              }
+            // Object.entries(ev).sort((a, b) => ordem.indexOf(a[0]) - ordem.indexOf(b[0])).forEach(([k, v]) => {
 
-              if (k === 'datas') {
-                const lista = v.map(d => { 
-                  const inicio = new Date(d.inicio)
-                  const fim = new Date(d.fim)
+            //   if (k === 'obs' || k === 'titulo') return
 
-                  const longo = fim - inicio >= 24 * 60 * 60 * 1000 
-                  return `${inicio.datahora('-')} até ${longo ? fim.datahora('-') : fim.hora()}`
-                })
-                v = lista.join(', ')
-                opt.title = lista.join('\n')
-              }
+            //   const opt = document.createElement('option')
 
-              opt.textContent = `${capital(k)}: ${v}`
-              this.config.appendChild(opt)
-            })
+            //   if (k === 'criador'){
+            //     if(v.nome) v = v.nome
+            //     if(v.includes('@')) v = v.split('@')[0].split('.').map(p => capital(p)).join(' ')
+            //   } 
+
+            //   if (k === 'locais') {
+            //     opt.title = v.map(l => {
+            //       const setor = LC.setores.find(lc => lc.id == l.split('.')[0])
+            //       const quadra = setor.quadras.find(lc => lc.id === l)
+
+            //       return (quadra ? `${setor.nome} - ${quadra.nome}` : setor.nome) + (quadra?.disabled || setor.disabled ? ' [Inativo]' : '')
+            //     }).sort((a, b) => a.localeCompare(b, 'pt-BR')).join('\n')
+            //     v = [...new Set(v.map(l => LC.setores.find(lc => lc.id == l.split('.')[0]).nome))].sort((a, b) => a.localeCompare(b, 'pt-BR')).join(', ')
+            //   }
+
+            //   if (k === 'datas') {
+            //     const lista = v.map(d => { 
+            //       const inicio = new Date(d.inicio)
+            //       const fim = new Date(d.fim)
+
+            //       const longo = fim - inicio >= 24 * 60 * 60 * 1000 
+            //       return `${inicio.datahora('-')} até ${longo ? fim.datahora('-') : fim.hora()}`
+            //     })
+            //     v = lista.join(', ')
+            //     opt.title = lista.join('\n')
+            //   }
+
+            //   opt.textContent = `${capital(k)}: ${v}`
+            //   this.config.appendChild(opt)
+            // })
           },
 
           filtrar() {
@@ -871,7 +906,7 @@
           },
 
           editar(){
-            const ev = this.db.eventos.find(e => e.id == this.lista.value)
+            const ev = Control.ev.eventos.find(e => e.id == this.lista.value)
             if(!ev) return toast('Erro ao acessar o evento', 'danger')
             Control.Edit.init(ev)
           },
@@ -912,7 +947,6 @@
           size: 12,
 
           init(){
-            this.db = LC
             this.getDOM()
             this.bind()
             this.renderSetores()
@@ -1014,7 +1048,7 @@
           },
 
           renderSetores(){
-            const setores = this.filtrar(this.db.setores.slice(), this.busca.value).filter(s => !s.disabled).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+            const setores = this.filtrar(Control.lc.setores.slice(), this.busca.value).filter(s => !s.disabled).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
             this.listaSetores.innerHTML = ''
 
             if (!setores.length) {
@@ -1034,7 +1068,7 @@
           },
 
           renderQuadras(){
-            const setor = this.db.setores.find(s => s.id === this.listaSetores.value && !s.disabled)
+            const setor = Control.lc.setores.find(s => s.id === this.listaSetores.value && !s.disabled)
             if (!setor) return
             const quadras = this.filtrar(setor.quadras, this.busca2.value).filter(q => !q.disabled).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR'))
             this.listaQuadras.innerHTML = ''
@@ -1114,6 +1148,7 @@
             }
             this.confirm.textContent = 'Salvar'
             this.confirm.onclick = () => {
+              const novo = this.changeIpt.value
               disable([this.confirm, this.cancel, this.changeIpt])
               toastWait('Renomeando...')
               google.script.run
@@ -1124,7 +1159,7 @@
                 }).withSuccessHandler(() => {
                   toast('Renomeado', 'success')
                   refresh('locais')
-                }).renomearLocal(id, nome)
+                }).renomearLocal(id, novo)
             }
           },
 
