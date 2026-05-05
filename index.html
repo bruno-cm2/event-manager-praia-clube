@@ -216,7 +216,7 @@
     <?!= HtmlService.createHtmlOutputFromFile('utils').getContent() ?>
     
     <script>
-
+      
       const skipLogin = true
       const start = 'eventos'
       let dev = false
@@ -348,6 +348,21 @@
           return Control.ev.eventos.find(e => e.id == eventoId)
         },
 
+        aninharLocais(listaLocais){
+          let setor = null
+          const aninhada = {}
+          listaLocais.forEach(l => {
+            if(setor?.id != l.id.split('.')[0]){
+              setor = Control.getLocal(l.id.split('.')[0])
+              aninhada[setor.nome] = []
+            }
+            if(l.tipo == 'quadra'){
+              aninhada[setor.nome].push(l.nome)
+            }
+          })
+          return aninhada
+        },
+        
         Add: {
 
           header: '<i class="bi bi-pencil-fill text-primary bi-underline" style="border-bottom: 1.5px solid currentColor; line-height: 1; font-size: 1.4rem;"></i><h2>Criar Evento</h2>',
@@ -392,7 +407,7 @@
             this.buscaLocais.oninput = () => this.renderListaLocais(this.buscaLocais.value)
             this.addBtn.onclick = () => this.addData()
             this.reverseBtn.onclick = () => this.reverseDates()
-            this.submitBtn.onclick = () => this.addEvent()
+            this.submitBtn.onclick = () => this.adicionar()
           },
 
           cache(eventCache){
@@ -413,7 +428,7 @@
               this.renderSelecionados()
             }
 
-            this.obsInput.value = typeof obs == 'string' ? obs : ''
+            this.obsInput.value = obs?.texto || ''
           },
 
           renderListaLocais(filtro = '') {
@@ -624,14 +639,14 @@
             const locais = this.locaisSel
             if(!locais || locais.length == 0) return toast('Escolha ao menos um local', 'warning')
 
-            const obs = this.obsInput.value
+            const texto = this.obsInput.value
 
             const {nome, sobrenome, email} = userData
 
-            return {titulo, tipo, datas, locais, obs, criador: {nome: nome + ' ' + sobrenome, email}}
+            return {titulo, tipo, datas, locais, obs: {texto}, criador: {nome: nome + ' ' + sobrenome, email}}
           },
 
-          addEvent(){
+          adicionar(){
             
             const evento = this.buildEvento()
 
@@ -706,8 +721,10 @@
             const id = this.evento.id
             if(!id) return toast('Erro crítico: não foi possível encontrar o id do evento', 'danger')
             
-            const {criador: _, ...evento} = Control.Add.buildEvento()
+            const evento = Control.Add.buildEvento()
             evento.id = id
+            evento.criador = this.evento.criador
+            evento.obs.link = this.evento.obs.link
 
             const buttons = [this.confirmBtn, this.cancelBtn]
 
@@ -779,7 +796,7 @@
             this.lista.innerHTML = ''
 
             if (!arr.length) {
-              this.lista.innerHTML = `<option disabled>Nenhum evento</option>`
+              this.lista.innerHTML = `<option class="p-3" disabled>Nenhum evento encontrado</option>`
               this.renderConfig()
               return
             }
@@ -843,30 +860,39 @@
                   `)
                 }).join('')}`
 
-              const listaLocais = ev.locais.map(l => {
-                const local = Control.getLocal(l)
-                if(!local) return l
-                const nome = local.setor ? `${local.setor} - ${local.nome}` : local.nome
-                return nome
-              })
+              const listaLocais = Control.aninharLocais(ev.locais.sort((a,b) => Number(a.split('.')[0]) - Number(b.split('.')[0])).map(l => Control.getLocal(l)))
 
               const locais = `
               <p class="fw-semibold mt-2 mb-1">Locais</p>
-              ${listaLocais.map((l, i) => `<div key="${i}" class="small">• ${l}</div>`).join('')}
+              ${Object.entries(listaLocais).map(([k, v], i) => {
+                return `<div class="small fw-semibold">• ${k + (v.length ? ':' :  ' (Setor inteiro)')}</div>`
+                + v.map(value => `<div class="ms-2 small">- ${value.length <= 2 ? 'Quadra' : ''} ${value}</div>`).join('')
+                }).join('')}
               `
+              const desconhecido = !(ev.criador?.nome || ev.criador)
 
               const criador = `
                 <p class="fw-semibold mt-2 mb-1">Criador</p>
-                <p class="small">
-                  ${typeof ev.criador === 'object' ? ev.criador.nome : ev.criador}
+                <p class="small ${desconhecido ? 'fst-italic text-danger' : ''}">
+                  ${ev.criador?.nome || ev.criador || 'Desconhecido'}
                 </p>
               `
 
+              const descricao = ev.obs?.texto || ev.obs || ''
+              const obs  = descricao ? `
+                <p class="fw-semibold mt-2 mb-1">Observações</p>
+                <div class="border rounded p-1">${descricao}</div>
+              ` : ''
+
               div.innerHTML = `
-              ${titulo}
-              ${tipo}
+              <div class="border-bottom mb-2">
+                ${titulo}
+                ${tipo}
+              </div>
+              ${criador}
               ${datas}
               ${locais}
+              ${obs}
               `
             }
 

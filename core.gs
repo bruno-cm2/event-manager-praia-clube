@@ -55,7 +55,7 @@ function addEvento(evento){
     const setores = [...new Set(locais.map(l => capital((l.tipo == 'setor'? l.nome : l.setor).replace('Complexo de ', '').replace('Complexo ', ''))))].join(', ')
     const quadras = locais.filter(l => l.tipo == 'quadra').map(l => l.nome).join(', ')
 
-    const infoEvento = [evento.id, tipo, titulo, inicio, fim, setores, quadras, obs]
+    const infoEvento = [evento.id, tipo, titulo, inicio, fim, setores, quadras, obs.link]
 
     updateSheet(planilha, meses, infoEvento, tipo)
   }
@@ -141,7 +141,7 @@ function capital(str){
 }
 
 
-function _sendEmail(subject, texto, evento){
+function sendEmail(subject, texto, evento){
   let locais = evento.locais.map(l => Locais.busca(l))
   locais = locais.map(l => l.tipo == 'setor' ? l.nome : l.setor + ' - ' + l.nome)
   if(evento.titulo.includes("Teste") || evento.titulo.includes("teste")) return

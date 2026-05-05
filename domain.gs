@@ -233,7 +233,7 @@ class Eventos{
         end: {dateTime: fim},
         location: locais.map(l => l.tipo == 'setor' ? l.nome : l.setor + ' - ' + l.nome),
         colorId: cores[tipo].calendar,
-        description: evento.obs,
+        description: evento.obs.texto,
         extendedProperties: {private: {
           planilhaID: evento.id,
           tipo,
@@ -247,6 +247,8 @@ class Eventos{
 
       return data
     })
+
+    evento.obs.link = this.createDescription(evento.titulo, evento.obs.texto)
 
     evento.datas = datas
 
@@ -295,7 +297,7 @@ class Eventos{
         end: {dateTime: fim},
         location: locais.map(l => l.tipo == 'setor' ? l.nome : l.setor + ' - ' + l.nome),
         colorId: cores[tipo].calendar,
-        description: evento.obs,
+        description: evento.obs.texto,
         extendedProperties: {private: {
           planilhaID: evento.id,
           tipo
@@ -309,6 +311,8 @@ class Eventos{
 
       return data
     })
+
+    this.editDescription(evento.obs.link, evento.obs.texto)
 
     evento.datas = datas
 
@@ -330,6 +334,8 @@ class Eventos{
     for(let data of dados.datas){
       try{Calendar.Events.remove(idAgenda, data.serverID)} catch{}
     }
+
+    this.deleteDescription(dados.obs?.link)
 
     const db = this.getDB()
 
@@ -404,7 +410,44 @@ class Eventos{
       }
     })
   }
+
+  static createDescription(titulo, texto) {
+    const doc = DocumentApp.create(titulo)
+    const body = doc.getBody()
+    body.setText(texto)
+    
+    const file = DriveApp.getFileById(doc.getId())
+    
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW)
+    
+    return doc.getUrl()
+  }
+
+  static editDescription(url, texto) {
+    if (!url) return
+    const match = url.match(/\/d\/([a-zA-Z0-9\-_]+)/)
+    if (!match) return
+    
+    const doc = DocumentApp.openById(match[1])
+    doc.getBody().setText(texto)
+    doc.saveAndClose()
+  }
+
+  static getDescription(id){
+    if(!id) return
+    const url = id.match(/\/d\/([a-zA-Z0-9\-_]+)/)
+    if(!url) return
+    return DocumentApp.openById(url[1]).getBody().getText() || ''
+  }
+
+  static deleteDescription(url) {
+    if (!url) return
+    const match = url.match(/\/d\/([a-zA-Z0-9\-_]+)/)
+    if (!match) return
+    DriveApp.getFileById(match[1]).setTrashed(true)
+  }
 }
+
 
 
 class Registro{
