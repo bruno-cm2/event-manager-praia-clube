@@ -1,3 +1,19 @@
+<style>
+  .ql-toolbar{
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+  }
+  .ql-container {
+    border: none !important;
+  }
+
+  .ql-editor {
+    min-height: calc(5 * 1.5em); /* 5 linhas × line-height */
+    line-height: 1.5;
+  }
+</style>
+
 <div class="d-flex flex-column gap-4" id="add-container">
   
   <!-- TÍTULO -->   
@@ -68,7 +84,9 @@
   </div>
 
   <!-- DESCRIÇÃO -->
-  <div id="obs"></div>
+  <div class="border rounded">
+    <div id="obs"></div>
+  </div>
 
   <!-- AÇÕES -->
   <div id="submit" class="d-flex justify-content-end">

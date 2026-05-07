@@ -144,6 +144,10 @@
     <?!= HtmlService.createHtmlOutputFromFile('locais').getContent() ?>
   </template>
 
+  <template id="view-info">
+    <?!= HtmlService.createHtmlOutputFromFile('info').getContent() ?>
+  </template>
+
   <div class="row h-100 overflow-hidden">
 
     <!-- SIDEBAR -->
@@ -221,1300 +225,1324 @@
 
   <script>
     const skipLogin = true
-      const start = 'eventos'
-      let dev = false
+    const start = 'add'
+    let dev = false
 
-      const EV = <?!= JSON.stringify(ev) ?>;
-      const LC = <?!= JSON.stringify(lc) ?>;
+    console.log(typeof emojilib)
+    console.log(Object.keys(window).filter(k => k.toLowerCase().includes('emoji')))
 
-      const CACHE = <?!= cache ?>;
+    const EV = <?!= JSON.stringify(ev) ?>;
+    const LC = <?!= JSON.stringify(lc) ?>;
 
-      const TIPOS = <?!= JSON.stringify(tipos) ?>;
+    const CACHE = <?!= cache ?>;
 
-      //
-      // NAVEGAÇÃO
-      //
+    const TIPOS = <?!= JSON.stringify(tipos) ?>;
 
-      const content = document.getElementById('content')
-      const cache = {}
+    const shortcodeMap = {}
 
-      const sidebarLinks = document.querySelectorAll('.nav-link')
-
-      const mainHeader = document.getElementById('page-header')
-
-      window.addEventListener('hashchange', () => {go(location.hash.slice(1))})
-
-      function go(page) {
-        const tpl = document.getElementById(`view-${page}`)
-        if (!tpl) return
-
-        sidebarLinks.forEach(a => {
-          a.classList.toggle('active', a.getAttribute('href') === `#${page}`)
+    fetch('https://unpkg.com/emojilib@4.0.2/dist/emoji-en-US.json')
+      .then(r => r.json())
+      .then(data => {
+        Object.entries(data).forEach(([emoji, nomes]) => {
+          nomes.forEach(nome => shortcodeMap[nome] = emoji)
         })
-
-        const control = Control[capital(page)]
-
-        mainHeader.innerHTML = control.header
-        content.classList = `col-${control.size} d-flex flex-column flex-grow-1`
-        content.innerHTML = ''
-        content.appendChild(tpl.content.cloneNode(true))
-
-        control.init()
-      }
-
-      function refresh(page){
-        document.body.style.pointerEvents = 'none'
-        google.script.run.withSuccessHandler((url) => {window.location.href = url + `#${page}`}).getScriptUrl()
-      }
-
-      //
-      // CONTROLE
-      //
-
-      let userData
-
-      const toastMsg = document.getElementById("toast")
-      let msg = new bootstrap.Toast(toastMsg, {autohide: true, delay: 3000})
-
-      const textModal = document.getElementById('modal-txt')
-      const modalEl = document.getElementById('modal')
-      const modal = new bootstrap.Modal(modalEl)
-      const confirmBtn = document.getElementById('confirm')
-      const cancelBtn = document.getElementById('cancel')
-      const modalAlertBtns = document.getElementById('modal-alert')
-      const modalConfirmBtns = document.getElementById('modal-confirm') 
-
-
-      function toast(text, cor = 'warning') {
-
-        text = text.replace('Error: ', '')
-
-        toastMsg.classList = `toast align-items-center border-0 text-bg-${cor}`
-        toastMsg.querySelector('.toast-body').innerHTML = text
-        msg = bootstrap.Toast.getOrCreateInstance(toastMsg, {autohide: true, delay: 3000})
-        msg.show()
-      }
-
-      function toastWait(text, errors = null){
-        toastMsg.classList = `toast align-items-center border-0 text-bg-light`
-        const body = toastMsg.querySelector('.toast-body')
-        body.innerHTML = `
-          <div class="d-flex align-items-center gap-2">
-            <div class="spinner-border spinner-border-sm" role="status"></div>
-            <span>${text}</span>
-            <span class="badge text-bg-danger ms-2${errors ? '' : ' d-none'}">${errors} ${errors > 1 ? 'erros' : 'erro'}</span>
-          </div>
-        `
-        msg = bootstrap.Toast.getOrCreateInstance(toastMsg, {autohide: false})
-        msg.show()
-      }
-
-      function alert(text, onclose = null){
-        modalAlertBtns.classList.remove('d-none')
-        textModal.innerHTML = text
-        modalEl.addEventListener('hidden.bs.modal', () => {
-          modalAlertBtns.classList.add('d-none')
-          if(onclose) onclose()
-        }, {once: true})
-        modal.show()
-      }
-
-      async function confirm(text){
-        modalConfirmBtns.classList.remove('d-none')
-        textModal.innerHTML = text
-        return new Promise((resolve) => {
-          confirmBtn.onclick = () => resolve(true)
-          cancelBtn.onclick = () => resolve(false)
-
-          modalEl.addEventListener('hidden.bs.modal', () => {
-            modalConfirmBtns.classList.add('d-none')
-            resolve(false)
-          }, {once: true})
-          modal.show()
-        })
-      }
-      
-      const Control = {
-
-        lc: LC,
-        ev: EV,
-
-        getLocal(localId){
-          const [idSetor, idQuadra] = String(localId).split('.')
-          const setor = Control.lc.setores.find(s => s.id == idSetor)
-          if(!idQuadra) return setor
-          const quadra = setor.quadras.find(q => q.id == localId)
-          return quadra
-        },
-
-        getEvento(eventoId){
-          return Control.ev.eventos.find(e => e.id == eventoId)
-        },
-
-        aninharLocais(listaLocais){
-          let setor = null
-          const aninhada = {}
-          listaLocais.forEach(l => {
-            if(setor?.id != l.id.split('.')[0]){
-              setor = Control.getLocal(l.id.split('.')[0])
-              aninhada[setor.nome] = []
-            }
-            if(l.tipo == 'quadra'){
-              aninhada[setor.nome].push(l.nome)
-            }
-          })
-          return aninhada
-        },
-        
-        Add: {
-
-          header: '<i class="bi bi-pencil-fill text-primary bi-underline" style="border-bottom: 1.5px solid currentColor; line-height: 1; font-size: 1.4rem;"></i><h2>Criar Evento</h2>',
-
-          size: '7',
-
-          init() {
-
-            this.CACHE = CACHE
-            this.locaisSel = []
-
-            this.getDOM()
-            this.bind()
-            this.renderListaLocais()
-            this.renderCalendar()
-            this.renderTipos()
-            this.titulo.focus()
-          },
-
-          getDOM() {
-            this.titulo = document.getElementById('titulo')
-
-            this.tipoBtn = document.getElementById('tipo-btn')
-            this.tipo = document.getElementById('tipo')
-
-            this.inicio = document.getElementById('inicio')
-            this.reverseBtn = document.getElementById('rev-btn')
-            this.fim = document.getElementById('fim')
-            this.addBtn = document.getElementById('add-btn')
-            this.datasSelecionadas = document.getElementById('datasSelecionadas')
-
-            this.buscaLocais = document.getElementById('busca-locais')
-            this.listaLocais = document.getElementById('lista-locais')
-            this.locaisSelecionados = document.getElementById('locaisSelecionados')
-
-            this.obs = new Quill('#obs-editor', {
-              theme: 'snow',
-              placeholder: 'Observações...',
-              modules: {
-                toolbar: [
-                  ['bold', 'italic', 'underline'],
-                  [{ list: 'ordered' }, { list: 'bullet' }],
-                  ['link'],
-                  ['clean']
-                ]
-              }
-            })
-
-            this.submitBtn = document.getElementById('submit-btn')
-          },
-
-          bind(){
-            this.buscaLocais.oninput = () => this.renderListaLocais(this.buscaLocais.value)
-            this.addBtn.onclick = () => this.addData()
-            this.reverseBtn.onclick = () => this.reverseDates()
-            this.submitBtn.onclick = () => this.adicionar()
-          },
-
-          cache(eventCache){
-            const {titulo, tipo, datas, locais, obs} = eventCache
-
-            this.titulo.value = titulo || ''
-
-            if(tipo){
-              this.tipoBtn.textContent = tipo
-              this.tipoBtn.classList.replace('btn-outline-secondary', `btn-${TIPOS[tipo].button}`)
-            }
-
-            if(datas.length) datas.forEach(d => this.renderData(d))
-
-            this.locaisSel = locais.map(l => Control.getLocal(l))
-            if(this.locaisSel.length) {
-              this.renderListaLocais()
-              this.renderSelecionados()
-            }
-
-            this.obsInput.value = obs?.texto || ''
-          },
-
-          renderListaLocais(filtro = '') {
-            this.listaLocais.innerHTML = ''
-            const termo = filtro
-
-            const setores = Control.lc.setores.filter(s => !s.disabled).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-
-            setores.forEach(setor => {
-              if (!setor.nome.toLowerCase().includes(termo.toLowerCase()) &&
-                  !setor.quadras.some(q => !q.disabled && q.nome.toLowerCase().includes(termo.toLowerCase()))) return
-
-              // setores
-              const header = document.createElement('div')
-              header.className = 'dropdown-item rounded fw-bold ps-2 sticky-top dropdown-header-sticky'
-              header.textContent = setor.nome
-              header.id = setor.id
-              header.onclick = () => this.selecionarLocal(setor)
-              this.listaLocais.appendChild(header)
-
-              // quadras
-              setor.quadras.filter(q => !q.disabled && q.nome.toLowerCase().includes(termo)).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR')).forEach(q => {
-                const item = document.createElement('div')
-                item.className = 'dropdown-item rounded p-0 ps-3'
-                item.id = q.id
-                item.textContent = q.nome
-                item.onclick = () => this.selecionarLocal(q)
-                this.listaLocais.appendChild(item)
-              })
-            })
-          },
-
-          renderSelecionados() {
-            this.locaisSelecionados.innerHTML = ''
-            this.locaisSel.sort((a, b) => {
-              const pa = a.tipo == 'setor' ? 0 : 1
-              const pb = b.tipo == 'setor' ? 0 : 1
-
-              return (pa - pb || Number(a.nome) - Number(b.nome) ||  a.nome.localeCompare(b.nome, 'pt-BR'))
-            }).forEach(l => {
-              const btn = document.createElement('button')
-              btn.className = 'btn btn-sm py-0 align-items-center rounded-2 gap-1 mt-1 fs-8'
-              btn.textContent = l.tipo == 'quadra' ? `${l.setor}: ${l.nome}` : l.nome
-              btn.classList.add('btn-' + (l.tipo == 'setor' ? 'primary' : 'success'))
-              btn.onclick = () => this.apagarLocal(l)
-              this.locaisSelecionados.appendChild(btn)
-            })
-          },
-
-          selecionarLocal(local) {
-            this.listaLocais.querySelectorAll(`[id^="${local.id + '.'}"]`).forEach(l => l.classList.add('disabled'))
-            this.listaLocais.querySelector(`[id="${local.id}"]`).classList.add('disabled')
-
-            this.locaisSel = [local, ...this.locaisSel.filter(l => !l.id.startsWith(local.id + '.'))]
-            this.renderSelecionados()
-          },
-
-          apagarLocal(local){
-            this.listaLocais.querySelectorAll(`[id^="${local.id + '.'}"]`).forEach(l => l.classList.remove('disabled'))
-            this.listaLocais.querySelector(`[id="${local.id}"]`).classList.remove('disabled')
-
-            this.locaisSel = this.locaisSel.filter(l => l.id != local.id)
-            this.renderSelecionados()
-          },
-
-          renderCalendar() {
-
-            flatpickr("#calendario-inicio", {
-              locale: flatpickr.l10ns.pt,
-              inline: true,
-              enableTime: true,
-              time_24hr: true,
-              dateFormat: "d/m \\à\\s H:i",
-              onChange: (selectedDates, dateStr) => {
-                this.inicio.textContent = dateStr
-                this.inicio.color = 'black'
-                this.inicio.dataset.date = selectedDates[0]
-              }
-            })
-
-            flatpickr("#calendario-fim", {
-              locale: flatpickr.l10ns.pt,
-              inline: true,
-              enableTime: true,
-              time_24hr: true,
-              dateFormat: "d/m \\à\\s H:i",
-              onChange: (selectedDates, dateStr) => {
-                this.fim.textContent = dateStr
-                this.fim.color = 'black'
-                this.fim.dataset.date = selectedDates[0]
-              }
-            })
-          },
-
-          addData() {
-            if(!this.inicio.dataset.date) return toast('Selecione uma data de início', 'warning')
-            if(!this.fim.dataset.date) return toast('Selecione uma data de fim', 'warning')
-    
-            const date = {inicio: new Date(this.inicio.dataset.date), fim: new Date(this.fim.dataset.date)}
-            const intervalo = date.fim - date.inicio
-
-            if(date.inicio > date.fim) {
-              [date.inicio, date.fim] = [date.fim, date.inicio]
-              this.reverseDates()
-            }
-            
-            const datas = [...this.datasSelecionadas.querySelectorAll('button')].map(d => JSON.parse(d.dataset.date))
-            
-            if(Math.abs(intervalo) < 60 * 60 * 1000) return toast('Escolha um intervalo de pelo menos 1 hora', 'warning')
-
-            date.inicio = date.inicio.toISOString()
-            date.fim = date.fim.toISOString()
-
-            const folga = 30
-
-            if(datas.some(d => isInside(date, d))) return toast('Essa data já foi escolhida', 'warning')
-            if(datas.some(d => isInside(date, d, folga))) return toast(`No mínimo ${folga} minutos de folga entre datas`, 'warning')
-
-            this.renderData(date)
-          },
-
-          renderData(date){
-            const inicio = new Date(date.inicio)
-            const fim = new Date(date.fim)
-
-            const longo = fim - inicio >= 24 * 60 * 60 * 1000
-            const shortFormat = inicio.datahora() + ' até ' + fim.hora()
-            const longFormat = inicio.datahora() + ' até ' + fim.datahora()
-
-            const btn = document.createElement('button')
-            btn.className = 'btn btn-sm py-0 align-items-center rounded-2 gap-1 mt-1 fs-8'
-            btn.textContent = longo ? longFormat : shortFormat
-            btn.dataset.date = JSON.stringify(date)
-            btn.classList.add('btn-' + (longo ? 'primary' : 'success'))
-            btn.onclick = () => btn.remove()
-            this.datasSelecionadas.appendChild(btn)
-          },
-
-          reverseDates(){
-            const inicioClone = this.inicio.cloneNode(true)
-            const fimClone = this.fim.cloneNode(true)
-
-            this.inicio.replaceWith(fimClone)
-            this.fim.replaceWith(inicioClone)
-
-            this.inicio = fimClone
-            this.fim = inicioClone
-
-            if(this.inicio.textContent == 'Fim') this.inicio.textContent = 'Início'
-            if(this.fim.textContent == 'Início') this.fim.textContent = 'Fim'
-          },
-
-          renderTipos(){
-            this.tipoSelecionado = null
-            this.tipoBtn.textContent = 'Tipo'
-
-            this.tipo.innerHTML = ''
-
-            Object.entries(TIPOS).forEach(([nome,cor]) =>{
-
-              const li = document.createElement('li')
-              li.classList.add('px-1')
-
-              const a = document.createElement('li')
-              a.className = "dropdown-item rounded ps-2"
-              a.textContent = nome
-              a.style.cssText = `--bs-dropdown-link-active-bg: var(--bs-${cor}); --bs-dropdown-link-active-color: white;`
-              a.onclick = (e) => {
-                e.preventDefault()
-                this.tipoSelecionado = a.textContent
-                this.tipoBtn.textContent = a.textContent
-                this.tipoBtn.classList.remove('is-invalid')
-
-                Array.from(this.tipoBtn.classList).forEach(c => {
-                  if (c.startsWith('btn-')) this.tipoBtn.classList.remove(c)
-                })
-
-                this.tipoBtn.classList.add('btn-' + cor.button)
-              }
-
-              li.appendChild(a)
-              this.tipo.appendChild(li)
-            })
-          },
-
-          getDates(){
-            return [...this.datasSelecionadas.querySelectorAll('button')]
-          },
-
-          buildEvento(){
-
-            const titulo = this.titulo.value
-            if(!titulo || titulo.length <= 2) return toast('Escolha um título', 'warning')
-
-            const tipo = this.tipoBtn.textContent
-            if(tipo == 'Tipo') return toast('Escolha um tipo', 'warning')
-
-            let buttons = this.getDates()
-
-            if(!buttons || buttons.length == 0){
-              this.addData()
-              buttons = this.getDates()
-              if(!buttons || buttons.length == 0) return
-            }
-
-            const datas = buttons.map(d => JSON.parse(d.dataset.date))
-
-            const locais = this.locaisSel
-            if(!locais || locais.length == 0) return toast('Escolha ao menos um local', 'warning')
-
-            const obs = {
-              texto: this.quill.getText().trim(),
-              html: this.quill.root.innerHTML,
-              delta: JSON.stringify(this.quill.getContents())
-            }
-
-            const {nome, sobrenome, email} = userData
-
-            return {titulo, tipo, datas, locais, obs, criador: {nome: nome + ' ' + sobrenome, email}}
-          },
-
-          adicionar(){
-            
-            const evento = this.buildEvento()
-
-            disable(this.submitBtn)
-
-            toastWait("Adicionando evento...")
-
-            google.script.run.withFailureHandler(err => {
-              try{
-                err = JSON.parse(err.message || err)
-                this.showError(err.locais)
-                toast(err.message, 'danger')
-              }
-              catch(e){
-                toast(err.message, 'danger')
-              }
-              enable(this.submitBtn)
-            }).withSuccessHandler(() => {
-              toast('Adicionado', 'success')
-              refresh('add')
-            }).addEvento(evento)
-          }
-        },
-
-        Edit: {
-
-          header: `
-          <i class="bi bi-pencil-fill text-warning bi-underline" style="border-bottom: 1.5px solid currentColor; line-height: 1; font-size: 1.4rem;"></i>
-          <h2>Editar Evento</h2>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>`
-          ,
-
-          init(ev){
-            this.getDOM()
-            this.bind()
-            this.evento = ev
-
-            Control.Add.init()
-            Control.Add.cache(ev)
-
-            this.modal.show()
-          },
-
-          getDOM(){
-            this.modalHeader = document.getElementById('edit-header')
-            this.modalHeader.innerHTML = this.header
-
-            this.body = document.getElementById('edit-body')
-            this.addTpl = document.getElementById('view-add')
-            this.body.innerHTML = ''
-            this.body.appendChild(this.addTpl.content.cloneNode(true))
-
-            this.addContainer = document.getElementById('add-container')
-            this.addContainer.classList.replace('gap-4', 'gap-3')
-
-            this.submit = document.getElementById('submit')
-            this.submit.classList.replace('d-flex', 'd-none')
-
-            this.confirmBtn = document.getElementById('edit-confirm')
-            this.cancelBtn = document.getElementById('edit-cancel')
-            this.modal = new bootstrap.Modal(document.getElementById('modal-edit'))
-
-          },
-
-          bind(){
-            this.confirmBtn.onclick = () => this.salvar()
-            this.cancelBtn.onclick = () => this.modal.hide()
-          },
-
-          salvar(){
-
-            const id = this.evento.id
-            if(!id) return toast('Erro crítico: não foi possível encontrar o id do evento', 'danger')
-            
-            const evento = Control.Add.buildEvento()
-            evento.id = id
-            evento.criador = this.evento.criador
-            evento.obs.link = this.evento.obs.link
-
-            const buttons = [this.confirmBtn, this.cancelBtn]
-
-            disable(buttons)
-
-            toastWait("Salvando alterações...")
-
-            google.script.run.withFailureHandler(err => {
-              try{
-                err = JSON.parse(err.message || err)
-                this.showError(err.locais)
-                toast(err.message, 'danger')
-              }
-              catch(e){
-                toast(err.message, 'danger')
-              }
-              enable(buttons)
-            }).withSuccessHandler(() => {
-              toast('Alterações salvas', 'success')
-              refresh('eventos')
-            }).addEvento(evento)
-          },
-        },
-        
-        Eventos: {
-
-          header: '<i class="bi bi-calendar2-event-fill text-success" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Lista de Eventos</h2>',
-
-          size: '12',
-
-          getDOM() {
-            this.busca   = document.getElementById('busca')
-            this.datas = null
-            this.periodoBtn = document.getElementById('periodo')
-            this.calendar = document.getElementById('calendario-periodo')
-            this.lista   = document.getElementById('eventos')
-            this.config  = document.getElementById('config')
-            this.criados = document.getElementById('criados')
-
-            this.addBtn  = document.getElementById('add-btn')
-            this.editBtn = document.getElementById('edit-btn')
-            this.delBtn  = document.getElementById('del-btn')
-
-            this.selected = null
-          },
-
-          bind() {
-            this.busca.oninput = () => this.filtrar()
-            this.criados.onchange = () => this.filtrar()
-
-            this.lista.onchange = () => {
-              this.renderConfig()
-              toggle([])
-            }
-            this.addBtn.onclick  = () => location.hash = 'add'
-            this.editBtn.onclick = () => this.editar()
-            this.delBtn.onclick  = () => this.apagar();
-          },
-
-          init() {
-            this.eventos = Control.ev.eventos.slice().sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'))
-            this.getDOM()
-            this.bind()
-            this.renderLista()
-            this.renderCalendar()
-          },
-
-          renderLista(arr = this.eventos) {
-            this.lista.innerHTML = ''
-
-            if (!arr.length) {
-              this.lista.innerHTML = `<option class="p-3" disabled>Nenhum evento encontrado</option>`
-              this.renderConfig()
-              return
-            }
-
-            arr.forEach(e => {
-              const ev = document.createElement('div')
-              ev.classList = `p-2 px-3 border-bottom`
-              ev.key = e.id
-              ev.onclick = () => {
-                if(this.selected) {
-                  const classList = [...this.selected.classList]
-                  this.selected.classList.remove(classList.find(c => c.startsWith('bg-')), 'text-white')
-                }
-                ev.classList.add(`bg-${TIPOS[e.tipo]?.button || 'secondary'}`, 'text-white')
-                this.selected = ev
-                this.renderConfig(e)
-              }
-              ev.style.cursor = 'pointer'
-
-              ev.innerHTML = `
-                <div class="fw-semibold">${e.titulo}</div>
-                <small class="opacity-75">${e.tipo} · ${e.datas?.length} data${e.datas?.length != 1 ? 's' : ''}</small>
-              `
-
-              this.lista.appendChild(ev)
-            })
-
-            this.lista.selectedIndex = 0
-            this.renderConfig()
-          },
-
-          renderConfig(ev = null) {
-
-            this.config.innerHTML = ''
-
-            const email = userData.email
-            const nome = email.split('@')[0].split('.').map(p => capital(p)).join(' ')
-            const admin = (ev && (ev.criador?.email == email || ev.criador === email || ev.criador == nome || userData.admin))
-
-            toggle([this.editBtn, this.delBtn], admin)
-
-            const div = document.createElement('div')
-            div.classList = 'p-3'
-
-            if (!ev) {
-              div.innerHTML = '<option disabled>Nenhum evento selecionado</option>  '
-            }
-            else{
-              const titulo = `<h6 class="fw-bold">${ev.titulo}</h6>`
-              const tipo = `<span class="badge text-bg-${TIPOS[ev.tipo].button} mb-3">${ev.tipo}</span>`
-              const datas = `
-              <p class="fw-semibold mb-1">Datas</p>
-              ${ev.datas.map((d, i) => {
-                  const inicio = new Date(d.inicio)
-                  const fim = new Date(d.fim)
-                  const longo = fim - inicio >= 24 * 60 * 60 * 1000
-                  return (`
-                    <div key=${i} class="small mb-1">
-                      • ${inicio.datahora()} até ${longo ? fim.datahora() : fim.hora()}
-                    </div>
-                  `)
-                }).join('')}`
-
-              const listaLocais = Control.aninharLocais(ev.locais.sort((a,b) => Number(a.split('.')[0]) - Number(b.split('.')[0])).map(l => Control.getLocal(l)))
-
-              const locais = `
-              <p class="fw-semibold mt-2 mb-1">Locais</p>
-              ${Object.entries(listaLocais).map(([k, v], i) => {
-                return `<div class="small fw-semibold">• ${k + (v.length ? ':' :  ' (Setor inteiro)')}</div>`
-                + v.map(value => `<div class="ms-2 small">- ${value.length <= 2 ? 'Quadra' : ''} ${value}</div>`).join('')
-                }).join('')}
-              `
-              const desconhecido = !(ev.criador?.nome || ev.criador)
-
-              const criador = `
-                <p class="fw-semibold mt-2 mb-1">Criador</p>
-                <p class="small ${desconhecido ? 'fst-italic text-danger' : ''}">
-                  ${ev.criador?.nome || ev.criador || 'Desconhecido'}
-                </p>
-              `
-
-              const descricao = ev.obs?.texto || ev.obs || ''
-              const obs  = descricao ? `
-                <p class="fw-semibold mt-2 mb-1">Observações</p>
-                <div class="border rounded p-1">${descricao}</div>
-              ` : ''
-
-              div.innerHTML = `
-              <div class="border-bottom mb-2">
-                ${titulo}
-                ${tipo}
-              </div>
-              ${criador}
-              ${datas}
-              ${locais}
-              ${obs}
-              `
-            }
-
-            this.config.appendChild(div)
-
-            // const ordem = ['criador', 'locais', 'datas', 'tipo', 'id', 'serverID
-
-            // Object.entries(ev).sort((a, b) => ordem.indexOf(a[0]) - ordem.indexOf(b[0])).forEach(([k, v]) => {
-
-            //   if (k === 'obs' || k === 'titulo') return
-
-            //   const opt = document.createElement('option')
-
-            //   if (k === 'criador'){
-            //     if(v.nome) v = v.nome
-            //     if(v.includes('@')) v = v.split('@')[0].split('.').map(p => capital(p)).join(' ')
-            //   } 
-
-            //   if (k === 'locais') {
-            //     opt.title = v.map(l => {
-            //       const setor = LC.setores.find(lc => lc.id == l.split('.')[0])
-            //       const quadra = setor.quadras.find(lc => lc.id === l)
-
-            //       return (quadra ? `${setor.nome} - ${quadra.nome}` : setor.nome) + (quadra?.disabled || setor.disabled ? ' [Inativo]' : '')
-            //     }).sort((a, b) => a.localeCompare(b, 'pt-BR')).join('\n')
-            //     v = [...new Set(v.map(l => LC.setores.find(lc => lc.id == l.split('.')[0]).nome))].sort((a, b) => a.localeCompare(b, 'pt-BR')).join(', ')
-            //   }
-
-            //   if (k === 'datas') {
-            //     const lista = v.map(d => { 
-            //       const inicio = new Date(d.inicio)
-            //       const fim = new Date(d.fim)
-
-            //       const longo = fim - inicio >= 24 * 60 * 60 * 1000 
-            //       return `${inicio.datahora('-')} até ${longo ? fim.datahora('-') : fim.hora()}`
-            //     })
-            //     v = lista.join(', ')
-            //     opt.title = lista.join('\n')
-            //   }
-
-            //   opt.textContent = `${capital(k)}: ${v}`
-            //   this.config.appendChild(opt)
-            // })
-          },
-
-          filtrar() {
-            const termo = this.busca.value.toLowerCase()
-            const filtrados = this.eventos.filter(e => {
-
-              const periodo = this.datas?.inicio ? e.datas.some(d => isInside(d, this.datas)) : true
-
-              const pesquisa = e.titulo.toLowerCase().includes(termo) || String(e.id).includes(termo)
-              const email = userData.email
-              const nome = email.split('@')[0].split('.').map(p => capital(p)).join(' ')
-              const criados = this.criados.checked
-              const meusEventos = criados ? (e.criador?.email == email || e.criador === email || e.criador == nome) : true
-
-              return pesquisa && meusEventos && periodo
-            })
-            this.renderLista(filtrados)
-          },
-
-          renderCalendar(){
-            flatpickr(this.calendar, {
-              inline: true,
-              locale: flatpickr.l10ns.pt,
-              mode: "range",
-              dateFormat: "d/m",
-              onChange: (selectedDates, dateStr) => {
-                this.periodoBtn.textContent = `Período: ${dateStr}`
-                this.periodoBtn.classList.replace('btn-outline-secondary', 'btn-secondary')
-                const [inicio, fim] = selectedDates.map(d=> d?.toISOString())
-                this.datas = {inicio, fim}
-                this.filtrar()
-                }
-            })
-          },
-
-          editar(){
-            const ev = Control.getEvento(this.selected.key)
-            if(!ev) return toast('Erro ao acessar o evento', 'danger')
-            Control.Edit.init(ev)
-          },
-
-          async apagar() {
-            const ev = Control.getEvento(this.selected.key)
-            if(!ev) return toast('Erro ao acessar o evento', 'danger')
-            const response = await confirm(`Deseja apagar o evento ${ev.titulo}?`)
-
-            if(response){
-              toastWait('Apagando...')
-
-              google.script.run
-                .withFailureHandler(err => toast(err.message, 'danger'))
-                .withSuccessHandler(() =>{
-                  toast('Apagado', 'success')
-                  refresh('eventos')
-                })
-                .apagarEvento(ev.id, dev)
-            }
-          }
-        },
-
-        Locais:{
-
-          header: '<i class="bi bi-geo-alt-fill text-danger" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Lista de Setores</h2>',
-
-          size: 12,
-
-          init(){
-            this.getDOM()
-            this.bind()
-            this.renderSetores()
-            this.renderQuadras()
-            this.listaSetores.focus()
-          },
-
-          getDOM(){
-            this.busca    = document.getElementById('busca')
-            this.busca2   = document.getElementById('busca2')
-            this.listaSetores = document.getElementById('setores')
-            this.listaQuadras = document.getElementById('quadras')
-
-            this.addBtn   = document.getElementById('add-btn')
-            this.editBtn  = document.getElementById('edit-btn')
-            this.delBtn   = document.getElementById('del-btn')
-
-            this.buttons = [this.addBtn, this.editBtn, this.delBtn]
-
-            this.control1 = document.getElementById('control-1')
-            this.control2 = document.getElementById('control-2')
-            this.changeIpt  = document.getElementById('change')
-            this.confirm   = document.getElementById('confirm')
-            this.cancel  = document.getElementById('cancel')
-          },
-
-          bind(){
-            this.busca.oninput = () => this.renderSetores()
-            this.listaSetores.onchange = () => this.renderQuadras()
-            this.listaSetores.addEventListener("keydown", e => {
-              switch (e.key) {
-                case 'ArrowRight':
-                  this.listaQuadras.focus()
-                  break;
-
-                case 'a':
-                  this.addBtn.click()
-                  break;
-
-                case 'r':
-                 this.editBtn.click()
-                 break;
-                
-                case 'delete':
-                case 'backspace':
-                  this.delBtn.click()
-                  break;
-              }
-            })
-            
-            this.listaQuadras.addEventListener("keydown", e => {
-              switch (e.key) {
-                case 'ArrowLeft':
-                  this.listaQuadras.focus()
-                  break;
-
-                case 'a':
-                  this.addBtn.click()
-                  break;
-
-                case 'r':
-                 this.editBtn.click()
-                 break;
-                
-                case 'delete':
-                case 'backspace':
-                  this.delBtn.click()
-                  break;
-              }
-            })
-
-            this.listaSetores.addEventListener('focusin', () => {
-              this.listaSetores.classList.add('focus')
-              this.listaQuadras.classList.remove('focus')
-            })
-
-            this.listaQuadras.addEventListener('focusin', () => {
-              this.listaQuadras.classList.add('focus')
-              this.listaSetores.classList.remove('focus')
-            })
-
-            this.changeIpt.addEventListener('input', () => {toggle(this.confirm, this.changeIpt.value.trim().length)})
-            this.changeIpt.addEventListener('keydown', e =>{if(e.key == 'Enter') this.confirm.click()})
-            this.changeIpt.addEventListener('keydown', e =>{if(e.key == 'Escape') this.cancel.click()})
-            this.addBtn.onclick = () => this.adicionar()
-            this.editBtn.onclick = () => this.renomear()
-            this.delBtn.onclick = () => this.apagar()
-          },
-
-          filtrar(locais, termo) {
-            return locais.filter(l => {
-              const nome = l.nome.toLowerCase().includes(termo)
-              const id = String(l.id).includes(termo)
-              const nomeQuadra = l.quadras?.some(q => q.nome.toLowerCase().includes(termo))
-              const idQuadra = l.quadras?.some(q => q.id.includes(termo))
-
-              return nome || id || nomeQuadra || idQuadra
-            })
-          },
-
-          renderSetores(){
-            const setores = this.filtrar(Control.lc.setores.slice(), this.busca.value).filter(s => !s.disabled).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-            this.listaSetores.innerHTML = ''
-
-            if (!setores.length) {
-              this.listaSetores.innerHTML = `<option disabled>Nenhum setor</option>`
-              return
-            }
-
-            setores.forEach(s => {
-              const opt = document.createElement('option')
-              opt.value = s.id
-              opt.textContent = s.nome
-              this.listaSetores.appendChild(opt)
-            })
-
-            this.listaSetores.selectedIndex = 0
-            this.renderQuadras()
-          },
-
-          renderQuadras(){
-            const setor = Control.lc.setores.find(s => s.id === this.listaSetores.value && !s.disabled)
-            if (!setor) return
-            const quadras = this.filtrar(setor.quadras, this.busca2.value).filter(q => !q.disabled).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR'))
-            this.listaQuadras.innerHTML = ''
-
-            if (!quadras || !quadras.length){
-              this.listaQuadras.innerHTML = `<option disabled>Nenhuma quadra</option>`
-              return
-            }
-
-            quadras.forEach(s => {
-              const opt = document.createElement('option')
-              opt.value = s.id
-              opt.textContent = s.nome
-              this.listaQuadras.appendChild(opt)
-            })
-
-            this.listaQuadras.selectedIndex = 0
-          },
-
-          adicionar(){
-            const isSetor = this.listaSetores.classList.contains('focus')
-  
-            this.control1.classList.replace('d-flex', 'd-none')
-            this.control2.classList.replace('d-none', 'd-flex')
-
-            disable(this.buttons)
-
-            this.changeIpt.focus()
-            this.changeIpt.placeholder = isSetor ? "Novo setor" : "Nova quadra"
-
-            const setorId = isSetor ? null : this.listaSetores.value
-
-            this.cancel.onclick = () => this.back()
-
-            this.confirm.textContent = 'Adicionar'
-            this.confirm.onclick = () => {
-              const nome = (dev ? ['Teste'] : '') + this.changeIpt.value;
-              disable([this.confirm, this.cancel, this.changeIpt])
-              toastWait('Adicionando...')
-              google.script.run
-                .withFailureHandler(err => {
-                  toast(err.message, 'danger')
-                  this.back()
-                }).withSuccessHandler(() => {
-                  toast('Adicionado', 'success')
-                  refresh('locais')
-                }).criarLocal(nome, setorId)
-            }
-          },
-
-          renomear(){
-            const isSetor = this.listaSetores.classList.contains('focus')
-  
-            this.control1.classList.replace('d-flex', 'd-none')
-            this.control2.classList.replace('d-none', 'd-flex')
-
-            disable(this.buttons)
-
-            const select = isSetor ? this.listaSetores : this.listaQuadras
-
-            const id = select.value
-            const nome = select.selectedOptions[0].textContent
-
-            this.changeIpt.focus()
-            this.changeIpt.value = nome
-            this.changeIpt.placeholder = nome
-
-            disable([this.listaSetores, this.listaQuadras])
-
-            const func = () => {toggle(this.confirm, this.changeIpt.value && this.changeIpt.value != nome)}
-            this.changeIpt.addEventListener('input', func)
-            disable(this.confirm)
-
-            this.cancel.onclick = () => {
-              this.back()
-              this.changeIpt.removeEventListener('input', func)
-            }
-            this.confirm.textContent = 'Salvar'
-            this.confirm.onclick = () => {
-              const novo = this.changeIpt.value
-              disable([this.confirm, this.cancel, this.changeIpt])
-              toastWait('Renomeando...')
-              google.script.run
-                .withFailureHandler(err => {
-                  toast(err.message, 'danger')
-                  this.changeIpt.removeEventListener('input', func)
-                  this.back()
-                }).withSuccessHandler(() => {
-                  toast('Renomeado', 'success')
-                  refresh('locais')
-                }).renomearLocal(id, novo)
-            }
-          },
-
-          async apagar(){
-            const isSetor = this.listaSetores.classList.contains('focus')
-
-            const options = [...(isSetor ? this.listaSetores.selectedOptions : this.listaQuadras.selectedOptions)]
-            const setorId = isSetor ? this.listaSetores.value : null
-            
-            const response = await confirm(`
-            Deseja apagar ${(isSetor ? 'esses setores?' : 'essas quadras?')}
-            <div class="mt-2 p-1 px-2 border rounded border-secondary text-start" style="width: fit-content">${options.map(o => o.text).join('<br>')}</span>
-            `)
-
-
-            if(response){
-              const errors = []
-  
-              await Promise.all(options.map(o => new Promise((resolve) => {
-                toastWait(`Apagando ${o.text}...`, errors.length)
-                google.script.run
-                  .withFailureHandler(err => {
-                    errors.push(o.text + ': ' + err.message)
-                    resolve()
-                  })
-                  .withSuccessHandler(() => resolve())
-                  .apagarLocal(o.value, dev)
-              })))
-
-              if(errors.length) alert('Os seguintes locais não foram apagados:\n' + errors.join('\n'), () => refresh('locais'))
-              else{
-                toast('Locais apagados', 'success')
-                refresh('locais')
-              }
-            }
-          },
-
-          back(){
-            enable([this.confirm, this.cancel, this.changeIpt, this.listaSetores, this.listaQuadras])
-            this.control1.classList.replace('d-none', 'd-flex')
-            this.control2.classList.replace('d-flex', 'd-none')
-          },
-
-        },
-
-        Pass: {
-          init(tpl){
-            this.getDOM(tpl)
-            this.bind()
-          },
-
-          getDOM(tpl){
-            this.inputs = tpl.querySelectorAll('.pass-input')
-          },
-
-          bind(){
-            this.inputs.forEach(d => {
-              const input = d.querySelector('.form-control')
-              const btn = d.querySelector('.btn')
-              const eye = btn.querySelector('.bi-eye-fill')
-
-              btn.tabIndex = -1
-              btn.onclick = () => {
-                const hidden = input.type == 'password'
-                input.type = hidden ? 'text' : 'password'
-              
-                eye.classList.toggle('bi-eye-fill');
-                eye.classList.toggle('bi-eye-slash-fill');
-              }
-            })
-          }
-        },
-
-        Account: {
-
-          header: '<i class="bi bi-person-circle text-dark" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Conta</h2>',
-
-          size: '6',
-
-          init(){
-            this.getDOM()
-            this.bind()
-            Control.Pass.init(document.body)
-          },
-
-          getDOM(){
-            this.nome = document.getElementById('nome')
-            this.sobrenome = document.getElementById('sobrenome')
-            this.setor = document.getElementById('setor')
-            this.email = document.getElementById('email')
-            
-            this.panelMain = document.getElementById('panel-main')
-            this.senha = document.getElementById('senha')
-            this.changeBtn = document.getElementById('change-btn')
-
-            this.panelChange = document.getElementById('panel-change')
-            this.oldPass = document.getElementById('old-pass')
-            this.newPass = document.getElementById('new-pass')
-            this.saveBtn = document.getElementById('save-btn')
-            this.cancelBtn = document.getElementById('cancel-btn')
-          },
-
-          bind(){
-            const {nome, sobrenome, email, setor, senha} = userData
-            this.nome.value = nome
-            this.sobrenome.value = sobrenome
-            this.setor.value = setor
-            this.email.value = email.split('@')[0]
-            this.senha.value = senha
-            this.changeBtn.onclick = () => this.changePass()
-            this.saveBtn.onclick = () => this.submitPass()
-            this.cancelBtn.onclick = () => this.back()
-          },
-
-          changePass(){
-            this.panelMain.classList.add('d-none')
-            this.panelChange.classList.remove('d-none')
-           },
-
-          submitPass(){
-
-            const email = userData.email
-            const antiga = this.oldPass.value
-            const nova = this.newPass.value
-
-            if(!antiga) return toast("Digite a senha atual")
-            if(nova.length < 6) return toast("Escolha uma senha maior")
-            
-            disable(this.saveBtn)
-            
-            toastWait('Alterando senha...')
-
-            google.script.run
-              .withFailureHandler(err => {
-                toast(err.message, 'danger')
-                enable(this.saveBtn)
-              })
-              .withSuccessHandler(() => {
-                toast('Senha alterada com sucesso', 'success')
-                userData.senha = '*'.repeat(nova.length)
-                this.back()
-            }).alterarSenha(email, antiga, nova)
-          },
-
-          back(){
-            this.panelMain.classList.remove('d-none')
-            this.panelChange.classList.add('d-none')
-            this.senha.value = userData.senha
-          }
-        },
-
-        Login: {
-
-          init() {
-            this.getDOM()
-            this.bind()
-            Control.Pass.init(document.body)
-            this.modal = new bootstrap.Modal(document.getElementById('modal-login'), {
-              backdrop: 'static',
-              keyboard: false
-            })
-            this.modal.show()
-          },
-
-          getDOM() {
-            this.user = document.getElementById('login-user')
-            this.pass = document.getElementById('login-pass')
-            this.err = document.getElementById('login-err')
-            this.loginBtn = document.getElementById('login-btn')
-            this.registerBtn = document.getElementById('register-btn')
-
-            this.painelLogin = document.getElementById('painel-login')
-            this.painelRegister = document.getElementById('painel-register')
-            this.regNome = document.getElementById('reg-nome')
-            this.regSobrenome = document.getElementById('reg-sobrenome')
-            this.regSetor = document.getElementById('reg-setor')
-            this.regEmail = document.getElementById('reg-email')
-            this.regPass = document.getElementById('reg-pass')
-            this.regErr = document.getElementById('register-err')
-            this.regBtn = document.getElementById('register-submit-btn')
-            this.backBtn = document.getElementById('back-btn')
-          },
-
-          bind() {
-            this.loginBtn.onclick = () => this.login()
-            this.registerBtn.onclick = () => this.register()
-            this.backBtn.onclick = () => this.back()
-            this.regBtn.onclick = () => this.submitRegister();
-
-            [this.user, this.pass].forEach(input => {
-              input.addEventListener('keydown', e => {
-                if (e.key === 'Enter') this.login()
-              })
-            })
-          },
-
-          setErr(msg) {
-            this.err.textContent = msg
-            this.err.classList.toggle('d-none', !msg)
-          },
-
-          login() {
-            const user = this.user.value.trim() + '@praiaclube.org.br'
-            const pass = this.pass.value
-
-            if(!user || !pass) return this.setErr('Preencha todos os campos')
-            if(pass.length < 6) return this.setErr('Escolha uma senha maior')
-            this.setErr('')
-
-            disable(this.loginBtn)
-            toastWait('Entrando...')
-
-            google.script.run
-              .withFailureHandler(err => {
-                toast(err.message, 'danger')
-                enable(this.loginBtn)
-              })
-              .withSuccessHandler(data => {
-                this.modal.hide()
-                document.body.classList.remove('view-login')
-                msg.hide()
-                userData = {senha: '*'.repeat(pass.length), ...data}
-                go(location.hash.slice(1) || start)
-            }).login(user, pass)
-          },
-
-          register() {
-            this.painelLogin.classList.add('d-none')
-            this.painelRegister.classList.remove('d-none')
-            this.regEmail.value = this.user.value
-          },
-
-          back() {
-            this.painelRegister.classList.add('d-none')
-            this.painelLogin.classList.remove('d-none')
-            this.user.value = this.regEmail.value
-          },
-
-          submitRegister() {
-            const nome = this.regNome.value.trim()
-            const sobrenome = this.regSobrenome.value.trim()
-            const setor = this.regSetor.value.trim()
-            const email = this.regEmail.value.trim() + '@praiaclube.org.br'
-            const senha = this.regPass.value
-
-            if (!nome || !setor || !email || !senha)
-              return this.regErr.textContent = 'Preencha todos os campos', this.regErr.classList.remove('d-none')
-
-            this.regErr.classList.add('d-none')
-            disable(this.regBtn)
-            toastWait('Registrando...')
-
-            google.script.run
-              .withFailureHandler(err => {
-                toast(err.message, 'danger')
-                this.regErr.classList.remove('d-none')
-                enable(this.regBtn)
-              })
-              .withSuccessHandler(() => {
-                this.back()
-                toast('Conta criada!', 'success')
-            }).cadastrar({nome, sobrenome, setor, email, senha})
-          }
-        },
-      }
-
-
-      document.addEventListener('DOMContentLoaded', () => {
-        if(!skipLogin){ 
-          const loginTpl = document.getElementById('view-login')
-          document.body.appendChild(loginTpl.content.cloneNode(true))
-          Control.Login.init()
-        }
-        else{
-          userData = {nome: "Dev", sobrenome: "da Silva", email: "aurea.ego@praiaclube.org.br", senha: "coxinha123", admin: true, setor: "Deus supremo"}
-          go(start)
-          dev = true
-        }
+        console.log('emojis carregados:', shortcodeMap['fire'])
       })
 
-  </script>
+    //
+    // NAVEGAÇÃO
+    //
+
+    const content = document.getElementById('content')
+    const cache = {}
+
+    const sidebarLinks = document.querySelectorAll('.nav-link')
+
+    const mainHeader = document.getElementById('page-header')
+
+    window.addEventListener('hashchange', () => {go(location.hash.slice(1))})
+
+    function go(page) {
+      const tpl = document.getElementById(`view-${page}`)
+      if (!tpl) return
+
+      sidebarLinks.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === `#${page}`)
+      })
+
+      const control = Control[capital(page)]
+
+      mainHeader.innerHTML = control.header
+      content.classList = `col-${control.size} d-flex flex-column flex-grow-1`
+      content.innerHTML = ''
+      content.appendChild(tpl.content.cloneNode(true))
+
+      control.init()
+    }
+
+    function refresh(page){
+      document.body.style.pointerEvents = 'none'
+      google.script.run.withSuccessHandler((url) => {window.location.href = url + `#${page}`}).getScriptUrl()
+    }
+
+    //
+    // CONTROLE
+    //
+
+    let userData
+
+    const toastMsg = document.getElementById("toast")
+    let msg = new bootstrap.Toast(toastMsg, {autohide: true, delay: 3000})
+
+    const textModal = document.getElementById('modal-txt')
+    const modalEl = document.getElementById('modal')
+    const modal = new bootstrap.Modal(modalEl)
+    const confirmBtn = document.getElementById('confirm')
+    const cancelBtn = document.getElementById('cancel')
+    const modalAlertBtns = document.getElementById('modal-alert')
+    const modalConfirmBtns = document.getElementById('modal-confirm') 
+
+
+    function toast(text, cor = 'warning') {
+
+      text = text.replace('Error: ', '')
+
+      toastMsg.classList = `toast align-items-center border-0 text-bg-${cor}`
+      toastMsg.querySelector('.toast-body').innerHTML = text
+      msg = bootstrap.Toast.getOrCreateInstance(toastMsg, {autohide: true, delay: 3000})
+      msg.show()
+    }
+
+    function toastWait(text, errors = null){
+      toastMsg.classList = `toast align-items-center border-0 text-bg-light`
+      const body = toastMsg.querySelector('.toast-body')
+      body.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+          <div class="spinner-border spinner-border-sm" role="status"></div>
+          <span>${text}</span>
+          <span class="badge text-bg-danger ms-2${errors ? '' : ' d-none'}">${errors} ${errors > 1 ? 'erros' : 'erro'}</span>
+        </div>
+      `
+      msg = bootstrap.Toast.getOrCreateInstance(toastMsg, {autohide: false})
+      msg.show()
+    }
+
+    function alert(text, onclose = null){
+      modalAlertBtns.classList.remove('d-none')
+      textModal.innerHTML = text
+      modalEl.addEventListener('hidden.bs.modal', () => {
+        modalAlertBtns.classList.add('d-none')
+        if(onclose) onclose()
+      }, {once: true})
+      modal.show()
+    }
+
+    async function confirm(text){
+      modalConfirmBtns.classList.remove('d-none')
+      textModal.innerHTML = text
+      return new Promise((resolve) => {
+        confirmBtn.onclick = () => resolve(true)
+        cancelBtn.onclick = () => resolve(false)
+
+        modalEl.addEventListener('hidden.bs.modal', () => {
+          modalConfirmBtns.classList.add('d-none')
+          resolve(false)
+        }, {once: true})
+        modal.show()
+      })
+    }
+    
+    const Control = {
+
+      lc: LC,
+      ev: EV,
+
+      getLocal(localId){
+        const [idSetor, idQuadra] = String(localId).split('.')
+        const setor = Control.lc.setores.find(s => s.id == idSetor)
+        if(!idQuadra) return setor
+        const quadra = setor.quadras.find(q => q.id == localId)
+        return quadra
+      },
+
+      getEvento(eventoId){
+        return Control.ev.eventos.find(e => e.id == eventoId)
+      },
+
+      aninharLocais(listaLocais){
+        let setor = null
+        const aninhada = {}
+        listaLocais.forEach(l => {
+          if(setor?.id != l.id.split('.')[0]){
+            setor = Control.getLocal(l.id.split('.')[0])
+            aninhada[setor.nome] = []
+          }
+          if(l.tipo == 'quadra'){
+            aninhada[setor.nome].push(l.nome)
+          }
+        })
+        return aninhada
+      },
+      
+      Add: {
+
+        header: '<i class="bi bi-pencil-fill text-primary bi-underline" style="border-bottom: 1.5px solid currentColor; line-height: 1; font-size: 1.4rem;"></i><h2>Criar Evento</h2>',
+
+        size: '7',
+
+        init() {
+
+          this.CACHE = CACHE
+          this.locaisSel = []
+
+          this.getDOM()
+          this.bind()
+          this.renderListaLocais()
+          this.renderCalendar()
+          this.renderTipos()
+          this.titulo.focus()
+        },
+
+        getDOM() {
+          this.titulo = document.getElementById('titulo')
+
+          this.tipoBtn = document.getElementById('tipo-btn')
+          this.tipo = document.getElementById('tipo')
+
+          this.inicio = document.getElementById('inicio')
+          this.reverseBtn = document.getElementById('rev-btn')
+          this.fim = document.getElementById('fim')
+          this.addBtn = document.getElementById('add-btn')
+          this.datasSelecionadas = document.getElementById('datasSelecionadas')
+
+          this.buscaLocais = document.getElementById('busca-locais')
+          this.listaLocais = document.getElementById('lista-locais')
+          this.locaisSelecionados = document.getElementById('locaisSelecionados')
+
+          this.obs = new Quill('#obs', {
+            theme: 'snow',
+            placeholder: 'Observações...',
+            modules: {
+              toolbar: [
+                ['bold', 'italic', 'underline'],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                ['link'],
+                ['clean']
+              ]
+            }
+          })
+
+          this.submitBtn = document.getElementById('submit-btn')
+        },
+
+        bind(){
+          this.buscaLocais.oninput = () => this.renderListaLocais(this.buscaLocais.value)
+          this.addBtn.onclick = () => this.addData()
+          this.reverseBtn.onclick = () => this.reverseDates()
+          this.submitBtn.onclick = () => this.adicionar()
+          let replacing = false
+
+          this.obs.on('text-change', () => {
+            if (replacing) return
+
+            const text = this.obs.getText()
+            const match = text.match(/:([a-z0-9_]+):/)
+            if (!match) return
+
+            const emoji = shortcodeMap[match[1]]
+            if (!emoji) return
+
+            replacing = true
+            const index = text.indexOf(match[0])
+            this.obs.deleteText(index, match[0].length)
+            this.obs.insertText(index, emoji)
+            this.obs.setSelection(index + emoji.length)
+            replacing = false
+          })
+        },
+
+        cache(eventCache){
+          const {titulo, tipo, datas, locais, obs} = eventCache
+
+          this.titulo.value = titulo || ''
+
+          if(tipo){
+            this.tipoBtn.textContent = tipo
+            this.tipoBtn.classList.replace('btn-outline-secondary', `btn-${TIPOS[tipo].button}`)
+          }
+
+          if(datas.length) datas.forEach(d => this.renderData(d))
+
+          this.locaisSel = locais.map(l => Control.getLocal(l))
+          if(this.locaisSel.length) {
+            this.renderListaLocais()
+            this.renderSelecionados()
+          }
+
+          this.obsInput.value = obs?.texto || ''
+        },
+
+        renderListaLocais(filtro = '') {
+          this.listaLocais.innerHTML = ''
+          const termo = filtro
+
+          const setores = Control.lc.setores.filter(s => !s.disabled).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+
+          setores.forEach(setor => {
+            if (!setor.nome.toLowerCase().includes(termo.toLowerCase()) &&
+                !setor.quadras.some(q => !q.disabled && q.nome.toLowerCase().includes(termo.toLowerCase()))) return
+
+            // setores
+            const header = document.createElement('div')
+            header.className = 'dropdown-item rounded fw-bold ps-2 sticky-top dropdown-header-sticky'
+            header.textContent = setor.nome
+            header.id = setor.id
+            header.onclick = () => this.selecionarLocal(setor)
+            this.listaLocais.appendChild(header)
+
+            // quadras
+            setor.quadras.filter(q => !q.disabled && q.nome.toLowerCase().includes(termo)).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR')).forEach(q => {
+              const item = document.createElement('div')
+              item.className = 'dropdown-item rounded p-0 ps-3'
+              item.id = q.id
+              item.textContent = q.nome
+              item.onclick = () => this.selecionarLocal(q)
+              this.listaLocais.appendChild(item)
+            })
+          })
+        },
+
+        renderSelecionados() {
+          this.locaisSelecionados.innerHTML = ''
+          this.locaisSel.sort((a, b) => {
+            const pa = a.tipo == 'setor' ? 0 : 1
+            const pb = b.tipo == 'setor' ? 0 : 1
+
+            return (pa - pb || Number(a.nome) - Number(b.nome) ||  a.nome.localeCompare(b.nome, 'pt-BR'))
+          }).forEach(l => {
+            const btn = document.createElement('button')
+            btn.className = 'btn btn-sm py-0 align-items-center rounded-2 gap-1 mt-1 fs-8'
+            btn.textContent = l.tipo == 'quadra' ? `${l.setor}: ${l.nome}` : l.nome
+            btn.classList.add('btn-' + (l.tipo == 'setor' ? 'primary' : 'success'))
+            btn.onclick = () => this.apagarLocal(l)
+            this.locaisSelecionados.appendChild(btn)
+          })
+        },
+
+        selecionarLocal(local) {
+          this.listaLocais.querySelectorAll(`[id^="${local.id + '.'}"]`).forEach(l => l.classList.add('disabled'))
+          this.listaLocais.querySelector(`[id="${local.id}"]`).classList.add('disabled')
+
+          this.locaisSel = [local, ...this.locaisSel.filter(l => !l.id.startsWith(local.id + '.'))]
+          this.renderSelecionados()
+        },
+
+        apagarLocal(local){
+          this.listaLocais.querySelectorAll(`[id^="${local.id + '.'}"]`).forEach(l => l.classList.remove('disabled'))
+          this.listaLocais.querySelector(`[id="${local.id}"]`).classList.remove('disabled')
+
+          this.locaisSel = this.locaisSel.filter(l => l.id != local.id)
+          this.renderSelecionados()
+        },
+
+        renderCalendar() {
+
+          flatpickr("#calendario-inicio", {
+            locale: flatpickr.l10ns.pt,
+            inline: true,
+            enableTime: true,
+            time_24hr: true,
+            dateFormat: "d/m \\à\\s H:i",
+            onChange: (selectedDates, dateStr) => {
+              this.inicio.textContent = dateStr
+              this.inicio.color = 'black'
+              this.inicio.dataset.date = selectedDates[0]
+            }
+          })
+
+          flatpickr("#calendario-fim", {
+            locale: flatpickr.l10ns.pt,
+            inline: true,
+            enableTime: true,
+            time_24hr: true,
+            dateFormat: "d/m \\à\\s H:i",
+            onChange: (selectedDates, dateStr) => {
+              this.fim.textContent = dateStr
+              this.fim.color = 'black'
+              this.fim.dataset.date = selectedDates[0]
+            }
+          })
+        },
+
+        addData() {
+          if(!this.inicio.dataset.date) return toast('Selecione uma data de início', 'warning')
+          if(!this.fim.dataset.date) return toast('Selecione uma data de fim', 'warning')
+  
+          const date = {inicio: new Date(this.inicio.dataset.date), fim: new Date(this.fim.dataset.date)}
+          const intervalo = date.fim - date.inicio
+
+          if(date.inicio > date.fim) {
+            [date.inicio, date.fim] = [date.fim, date.inicio]
+            this.reverseDates()
+          }
+          
+          const datas = [...this.datasSelecionadas.querySelectorAll('button')].map(d => JSON.parse(d.dataset.date))
+          
+          if(Math.abs(intervalo) < 60 * 60 * 1000) return toast('Escolha um intervalo de pelo menos 1 hora', 'warning')
+
+          date.inicio = date.inicio.toISOString()
+          date.fim = date.fim.toISOString()
+
+          const folga = 30
+
+          if(datas.some(d => isInside(date, d))) return toast('Essa data já foi escolhida', 'warning')
+          if(datas.some(d => isInside(date, d, folga))) return toast(`No mínimo ${folga} minutos de folga entre datas`, 'warning')
+
+          this.renderData(date)
+        },
+
+        renderData(date){
+          const inicio = new Date(date.inicio)
+          const fim = new Date(date.fim)
+
+          const longo = fim - inicio >= 24 * 60 * 60 * 1000
+          const shortFormat = inicio.datahora() + ' até ' + fim.hora()
+          const longFormat = inicio.datahora() + ' até ' + fim.datahora()
+
+          const btn = document.createElement('button')
+          btn.className = 'btn btn-sm py-0 align-items-center rounded-2 gap-1 mt-1 fs-8'
+          btn.textContent = longo ? longFormat : shortFormat
+          btn.dataset.date = JSON.stringify(date)
+          btn.classList.add('btn-' + (longo ? 'primary' : 'success'))
+          btn.onclick = () => btn.remove()
+          this.datasSelecionadas.appendChild(btn)
+        },
+
+        reverseDates(){
+          const inicioClone = this.inicio.cloneNode(true)
+          const fimClone = this.fim.cloneNode(true)
+
+          this.inicio.replaceWith(fimClone)
+          this.fim.replaceWith(inicioClone)
+
+          this.inicio = fimClone
+          this.fim = inicioClone
+
+          if(this.inicio.textContent == 'Fim') this.inicio.textContent = 'Início'
+          if(this.fim.textContent == 'Início') this.fim.textContent = 'Fim'
+        },
+
+        renderTipos(){
+          this.tipoSelecionado = null
+          this.tipoBtn.textContent = 'Tipo'
+
+          this.tipo.innerHTML = ''
+
+          Object.entries(TIPOS).forEach(([nome,cor]) =>{
+
+            const li = document.createElement('li')
+            li.classList.add('px-1')
+
+            const a = document.createElement('li')
+            a.className = "dropdown-item rounded ps-2"
+            a.textContent = nome
+            a.style.cssText = `--bs-dropdown-link-active-bg: var(--bs-${cor}); --bs-dropdown-link-active-color: white;`
+            a.onclick = (e) => {
+              e.preventDefault()
+              this.tipoSelecionado = a.textContent
+              this.tipoBtn.textContent = a.textContent
+              this.tipoBtn.classList.remove('is-invalid')
+
+              Array.from(this.tipoBtn.classList).forEach(c => {
+                if (c.startsWith('btn-')) this.tipoBtn.classList.remove(c)
+              })
+
+              this.tipoBtn.classList.add('btn-' + cor.button)
+            }
+
+            li.appendChild(a)
+            this.tipo.appendChild(li)
+          })
+        },
+
+        getDates(){
+          return [...this.datasSelecionadas.querySelectorAll('button')]
+        },
+
+        buildEvento(){
+
+          const titulo = this.titulo.value
+          if(!titulo || titulo.length <= 2) return toast('Escolha um título', 'warning')
+
+          const tipo = this.tipoBtn.textContent
+          if(tipo == 'Tipo') return toast('Escolha um tipo', 'warning')
+
+          let buttons = this.getDates()
+
+          if(!buttons || buttons.length == 0){
+            this.addData()
+            buttons = this.getDates()
+            if(!buttons || buttons.length == 0) return
+          }
+
+          const datas = buttons.map(d => JSON.parse(d.dataset.date))
+
+          const locais = this.locaisSel
+          if(!locais || locais.length == 0) return toast('Escolha ao menos um local', 'warning')
+
+          const obs = {
+            texto: this.quill.getText().trim(),
+            html: this.quill.root.innerHTML,
+            delta: JSON.stringify(this.quill.getContents())
+          }
+
+          const {nome, sobrenome, email} = userData
+
+          return {titulo, tipo, datas, locais, obs, criador: {nome: nome + ' ' + sobrenome, email}}
+        },
+
+        adicionar(){
+          
+          const evento = this.buildEvento()
+
+          disable(this.submitBtn)
+
+          toastWait("Adicionando evento...")
+
+          google.script.run.withFailureHandler(err => {
+            try{
+              err = JSON.parse(err.message || err)
+              this.showError(err.locais)
+              toast(err.message, 'danger')
+            }
+            catch(e){
+              toast(err.message, 'danger')
+            }
+            enable(this.submitBtn)
+          }).withSuccessHandler(() => {
+            toast('Adicionado', 'success')
+            refresh('add')
+          }).addEvento(evento)
+        }
+      },
+
+      Edit: {
+
+        header: `
+        <i class="bi bi-pencil-fill text-warning bi-underline" style="border-bottom: 1.5px solid currentColor; line-height: 1; font-size: 1.4rem;"></i>
+        <h2>Editar Evento</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>`
+        ,
+
+        init(ev){
+          this.getDOM()
+          this.bind()
+          this.evento = ev
+
+          Control.Add.init()
+          Control.Add.cache(ev)
+
+          this.modal.show()
+        },
+
+        getDOM(){
+          this.modalHeader = document.getElementById('edit-header')
+          this.modalHeader.innerHTML = this.header
+
+          this.body = document.getElementById('edit-body')
+          this.addTpl = document.getElementById('view-add')
+          this.body.innerHTML = ''
+          this.body.appendChild(this.addTpl.content.cloneNode(true))
+
+          this.addContainer = document.getElementById('add-container')
+          this.addContainer.classList.replace('gap-4', 'gap-3')
+
+          this.submit = document.getElementById('submit')
+          this.submit.classList.replace('d-flex', 'd-none')
+
+          this.confirmBtn = document.getElementById('edit-confirm')
+          this.cancelBtn = document.getElementById('edit-cancel')
+          this.modal = new bootstrap.Modal(document.getElementById('modal-edit'))
+
+        },
+
+        bind(){
+          this.confirmBtn.onclick = () => this.salvar()
+          this.cancelBtn.onclick = () => this.modal.hide()
+        },
+
+        salvar(){
+
+          const id = this.evento.id
+          if(!id) return toast('Erro crítico: não foi possível encontrar o id do evento', 'danger')
+          
+          const evento = Control.Add.buildEvento()
+          evento.id = id
+          evento.criador = this.evento.criador
+          evento.obs.link = this.evento.obs.link
+
+          const buttons = [this.confirmBtn, this.cancelBtn]
+
+          disable(buttons)
+
+          toastWait("Salvando alterações...")
+
+          google.script.run.withFailureHandler(err => {
+            try{
+              err = JSON.parse(err.message || err)
+              this.showError(err.locais)
+              toast(err.message, 'danger')
+            }
+            catch(e){
+              toast(err.message, 'danger')
+            }
+            enable(buttons)
+          }).withSuccessHandler(() => {
+            toast('Alterações salvas', 'success')
+            refresh('eventos')
+          }).addEvento(evento)
+        },
+      },
+      
+      Eventos: {
+
+        header: '<i class="bi bi-calendar2-event-fill text-success" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Lista de Eventos</h2>',
+
+        size: '12',
+
+        getDOM() {
+          this.busca   = document.getElementById('busca')
+          this.datas = null
+          this.periodoBtn = document.getElementById('periodo')
+          this.calendar = document.getElementById('calendario-periodo')
+          this.lista   = document.getElementById('eventos')
+          this.config  = document.getElementById('config')
+          this.criados = document.getElementById('criados')
+
+          this.addBtn  = document.getElementById('add-btn')
+          this.editBtn = document.getElementById('edit-btn')
+          this.delBtn  = document.getElementById('del-btn')
+
+          this.selected = null
+        },
+
+        bind() {
+          this.busca.oninput    = () => this.filtrar()
+          this.criados.onchange = () => this.filtrar()
+          this.lista.onchange   = () => this.renderConfig()
+          this.addBtn.onclick   = () => location.hash = 'add'
+          this.editBtn.onclick  = () => this.editar()
+          this.delBtn.onclick   = () => this.apagar()
+        },
+
+        init() {
+          this.eventos = Control.ev.eventos.slice().sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'))
+          this.getDOM()
+          Control.Info.init(this.config)
+          this.bind()
+          this.renderLista()
+          this.renderCalendar()
+        },
+
+        renderLista(arr = this.eventos) {
+          this.lista.innerHTML = ''
+
+          if (!arr.length) {
+            this.lista.innerHTML = `<option class="p-3" disabled>Nenhum evento encontrado</option>`
+            this.renderConfig()
+            return
+          }
+
+          arr.forEach(e => {
+            const ev = document.createElement('div')
+            ev.classList = `p-2 px-3 border-bottom`
+            ev.key = e.id
+            ev.onclick = () => {
+              if(this.selected) {
+                const classList = [...this.selected.classList]
+                this.selected.classList.remove(classList.find(c => c.startsWith('bg-')), 'text-white')
+              }
+              ev.classList.add(`bg-${TIPOS[e.tipo]?.button || 'secondary'}`, 'text-white')
+              this.selected = ev
+              this.renderConfig(e)
+            }
+            ev.style.cursor = 'pointer'
+
+            ev.innerHTML = `
+              <div class="fw-semibold">${e.titulo}</div>
+              <small class="opacity-75">${e.tipo} · ${e.datas?.length} data${e.datas?.length != 1 ? 's' : ''}</small>
+            `
+
+            this.lista.appendChild(ev)
+          })
+
+          this.lista.selectedIndex = 0
+          this.renderConfig()
+        },
+
+        renderConfig(ev = null) {
+
+          const email = userData.email
+          const nome = email.split('@')[0].split('.').map(p => capital(p)).join(' ')
+          const admin = (ev && (ev.criador?.email == email || ev.criador === email || ev.criador == nome || userData.admin))
+
+          toggle([this.editBtn, this.delBtn], admin)
+
+          Control.Info.renderFull(ev)
+
+        },
+
+        filtrar() {
+          const termo = this.busca.value.toLowerCase()
+          const filtrados = this.eventos.filter(e => {
+
+            const periodo = this.datas?.inicio ? e.datas.some(d => isInside(d, this.datas)) : true
+
+            const pesquisa = e.titulo.toLowerCase().includes(termo) || String(e.id).includes(termo)
+            const email = userData.email
+            const nome = email.split('@')[0].split('.').map(p => capital(p)).join(' ')
+            const criados = this.criados.checked
+            const meusEventos = criados ? (e.criador?.email == email || e.criador === email || e.criador == nome) : true
+
+            return pesquisa && meusEventos && periodo
+          })
+          this.renderLista(filtrados)
+        },
+
+        renderCalendar(){
+          flatpickr(this.calendar, {
+            inline: true,
+            locale: flatpickr.l10ns.pt,
+            mode: "range",
+            dateFormat: "d/m",
+            onChange: (selectedDates, dateStr) => {
+              this.periodoBtn.textContent = `Período: ${dateStr}`
+              this.periodoBtn.classList.replace('btn-outline-secondary', 'btn-secondary')
+              const [inicio, fim] = selectedDates.map(d=> d?.toISOString())
+              this.datas = {inicio, fim}
+              this.filtrar()
+              }
+          })
+        },
+
+        editar(){
+          const ev = Control.getEvento(this.selected.key)
+          if(!ev) return toast('Erro ao acessar o evento', 'danger')
+          Control.Edit.init(ev)
+        },
+
+        async apagar() {
+          const ev = Control.getEvento(this.selected.key)
+          if(!ev) return toast('Erro ao acessar o evento', 'danger')
+          const response = await confirm(`Deseja apagar o evento ${ev.titulo}?`)
+
+          if(response){
+            toastWait('Apagando...')
+
+            google.script.run
+              .withFailureHandler(err => toast(err.message, 'danger'))
+              .withSuccessHandler(() =>{
+                toast('Apagado', 'success')
+                refresh('eventos')
+              })
+              .apagarEvento(ev.id, dev)
+          }
+        }
+      },
+
+      Locais:{
+
+        header: '<i class="bi bi-geo-alt-fill text-danger" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Lista de Setores</h2>',
+
+        size: 12,
+
+        init(){
+          this.getDOM()
+          this.bind()
+          this.renderSetores()
+          this.renderQuadras()
+          this.listaSetores.focus()
+        },
+
+        getDOM(){
+          this.busca    = document.getElementById('busca')
+          this.busca2   = document.getElementById('busca2')
+          this.listaSetores = document.getElementById('setores')
+          this.listaQuadras = document.getElementById('quadras')
+
+          this.addBtn   = document.getElementById('add-btn')
+          this.editBtn  = document.getElementById('edit-btn')
+          this.delBtn   = document.getElementById('del-btn')
+
+          this.buttons = [this.addBtn, this.editBtn, this.delBtn]
+
+          this.control1 = document.getElementById('control-1')
+          this.control2 = document.getElementById('control-2')
+          this.changeIpt  = document.getElementById('change')
+          this.confirm   = document.getElementById('confirm')
+          this.cancel  = document.getElementById('cancel')
+        },
+
+        bind(){
+          this.busca.oninput = () => this.renderSetores()
+          this.listaSetores.onchange = () => this.renderQuadras()
+          this.listaSetores.addEventListener("keydown", e => {
+            switch (e.key) {
+              case 'ArrowRight':
+                this.listaQuadras.focus()
+                break;
+
+              case 'a':
+                this.addBtn.click()
+                break;
+
+              case 'r':
+                this.editBtn.click()
+                break;
+              
+              case 'delete':
+              case 'backspace':
+                this.delBtn.click()
+                break;
+            }
+          })
+          
+          this.listaQuadras.addEventListener("keydown", e => {
+            switch (e.key) {
+              case 'ArrowLeft':
+                this.listaQuadras.focus()
+                break;
+
+              case 'a':
+                this.addBtn.click()
+                break;
+
+              case 'r':
+                this.editBtn.click()
+                break;
+              
+              case 'delete':
+              case 'backspace':
+                this.delBtn.click()
+                break;
+            }
+          })
+
+          this.listaSetores.addEventListener('focusin', () => {
+            this.listaSetores.classList.add('focus')
+            this.listaQuadras.classList.remove('focus')
+          })
+
+          this.listaQuadras.addEventListener('focusin', () => {
+            this.listaQuadras.classList.add('focus')
+            this.listaSetores.classList.remove('focus')
+          })
+
+          this.changeIpt.addEventListener('input', () => {toggle(this.confirm, this.changeIpt.value.trim().length)})
+          this.changeIpt.addEventListener('keydown', e =>{if(e.key == 'Enter') this.confirm.click()})
+          this.changeIpt.addEventListener('keydown', e =>{if(e.key == 'Escape') this.cancel.click()})
+          this.addBtn.onclick = () => this.adicionar()
+          this.editBtn.onclick = () => this.renomear()
+          this.delBtn.onclick = () => this.apagar()
+        },
+
+        filtrar(locais, termo) {
+          return locais.filter(l => {
+            const nome = l.nome.toLowerCase().includes(termo)
+            const id = String(l.id).includes(termo)
+            const nomeQuadra = l.quadras?.some(q => q.nome.toLowerCase().includes(termo))
+            const idQuadra = l.quadras?.some(q => q.id.includes(termo))
+
+            return nome || id || nomeQuadra || idQuadra
+          })
+        },
+
+        renderSetores(){
+          const setores = this.filtrar(Control.lc.setores.slice(), this.busca.value).filter(s => !s.disabled).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+          this.listaSetores.innerHTML = ''
+
+          if (!setores.length) {
+            this.listaSetores.innerHTML = `<option disabled>Nenhum setor</option>`
+            return
+          }
+
+          setores.forEach(s => {
+            const opt = document.createElement('option')
+            opt.value = s.id
+            opt.textContent = s.nome
+            this.listaSetores.appendChild(opt)
+          })
+
+          this.listaSetores.selectedIndex = 0
+          this.renderQuadras()
+        },
+
+        renderQuadras(){
+          const setor = Control.lc.setores.find(s => s.id === this.listaSetores.value && !s.disabled)
+          if (!setor) return
+          const quadras = this.filtrar(setor.quadras, this.busca2.value).filter(q => !q.disabled).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR'))
+          this.listaQuadras.innerHTML = ''
+
+          if (!quadras || !quadras.length){
+            this.listaQuadras.innerHTML = `<option disabled>Nenhuma quadra</option>`
+            return
+          }
+
+          quadras.forEach(s => {
+            const opt = document.createElement('option')
+            opt.value = s.id
+            opt.textContent = s.nome
+            this.listaQuadras.appendChild(opt)
+          })
+
+          this.listaQuadras.selectedIndex = 0
+        },
+
+        adicionar(){
+          const isSetor = this.listaSetores.classList.contains('focus')
+
+          this.control1.classList.replace('d-flex', 'd-none')
+          this.control2.classList.replace('d-none', 'd-flex')
+
+          disable(this.buttons)
+
+          this.changeIpt.focus()
+          this.changeIpt.placeholder = isSetor ? "Novo setor" : "Nova quadra"
+
+          const setorId = isSetor ? null : this.listaSetores.value
+
+          this.cancel.onclick = () => this.back()
+
+          this.confirm.textContent = 'Adicionar'
+          this.confirm.onclick = () => {
+            const nome = (dev ? ['Teste'] : '') + this.changeIpt.value;
+            disable([this.confirm, this.cancel, this.changeIpt])
+            toastWait('Adicionando...')
+            google.script.run
+              .withFailureHandler(err => {
+                toast(err.message, 'danger')
+                this.back()
+              }).withSuccessHandler(() => {
+                toast('Adicionado', 'success')
+                refresh('locais')
+              }).criarLocal(nome, setorId)
+          }
+        },
+
+        renomear(){
+          const isSetor = this.listaSetores.classList.contains('focus')
+
+          this.control1.classList.replace('d-flex', 'd-none')
+          this.control2.classList.replace('d-none', 'd-flex')
+
+          disable(this.buttons)
+
+          const select = isSetor ? this.listaSetores : this.listaQuadras
+
+          const id = select.value
+          const nome = select.selectedOptions[0].textContent
+
+          this.changeIpt.focus()
+          this.changeIpt.value = nome
+          this.changeIpt.placeholder = nome
+
+          disable([this.listaSetores, this.listaQuadras])
+
+          const func = () => {toggle(this.confirm, this.changeIpt.value && this.changeIpt.value != nome)}
+          this.changeIpt.addEventListener('input', func)
+          disable(this.confirm)
+
+          this.cancel.onclick = () => {
+            this.back()
+            this.changeIpt.removeEventListener('input', func)
+          }
+          this.confirm.textContent = 'Salvar'
+          this.confirm.onclick = () => {
+            const novo = this.changeIpt.value
+            disable([this.confirm, this.cancel, this.changeIpt])
+            toastWait('Renomeando...')
+            google.script.run
+              .withFailureHandler(err => {
+                toast(err.message, 'danger')
+                this.changeIpt.removeEventListener('input', func)
+                this.back()
+              }).withSuccessHandler(() => {
+                toast('Renomeado', 'success')
+                refresh('locais')
+              }).renomearLocal(id, novo)
+          }
+        },
+
+        async apagar(){
+          const isSetor = this.listaSetores.classList.contains('focus')
+
+          const options = [...(isSetor ? this.listaSetores.selectedOptions : this.listaQuadras.selectedOptions)]
+          const setorId = isSetor ? this.listaSetores.value : null
+          
+          const response = await confirm(`
+          Deseja apagar ${(isSetor ? 'esses setores?' : 'essas quadras?')}
+          <div class="mt-2 p-1 px-2 border rounded border-secondary text-start" style="width: fit-content">${options.map(o => o.text).join('<br>')}</span>
+          `)
+
+
+          if(response){
+            const errors = []
+
+            await Promise.all(options.map(o => new Promise((resolve) => {
+              toastWait(`Apagando ${o.text}...`, errors.length)
+              google.script.run
+                .withFailureHandler(err => {
+                  errors.push(o.text + ': ' + err.message)
+                  resolve()
+                })
+                .withSuccessHandler(() => resolve())
+                .apagarLocal(o.value, dev)
+            })))
+
+            if(errors.length) alert('Os seguintes locais não foram apagados:\n' + errors.join('\n'), () => refresh('locais'))
+            else{
+              toast('Locais apagados', 'success')
+              refresh('locais')
+            }
+          }
+        },
+
+        back(){
+          enable([this.confirm, this.cancel, this.changeIpt, this.listaSetores, this.listaQuadras])
+          this.control1.classList.replace('d-none', 'd-flex')
+          this.control2.classList.replace('d-flex', 'd-none')
+        },
+
+      },
+
+      Pass: {
+        init(){
+          this.getDOM()
+          this.bind()
+        },
+
+        getDOM(){
+          this.inputs = document.querySelectorAll('.pass-input')
+        },
+
+        bind(){
+          this.inputs.forEach(d => {
+            const input = d.querySelector('.form-control')
+            const btn = d.querySelector('.btn')
+            const eye = btn.querySelector('.bi-eye-fill')
+
+            btn.tabIndex = -1
+            btn.onclick = () => {
+              const hidden = input.type == 'password'
+              input.type = hidden ? 'text' : 'password'
+            
+              eye.classList.toggle('bi-eye-fill');
+              eye.classList.toggle('bi-eye-slash-fill');
+            }
+          })
+        }
+      },
+
+      Account: {
+
+        header: '<i class="bi bi-person-circle text-dark" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Conta</h2>',
+
+        size: '6',
+
+        init(){
+          this.getDOM()
+          this.bind()
+          Control.Pass.init()
+        },
+
+        getDOM(){
+          this.nome = document.getElementById('nome')
+          this.sobrenome = document.getElementById('sobrenome')
+          this.setor = document.getElementById('setor')
+          this.email = document.getElementById('email')
+          
+          this.panelMain = document.getElementById('panel-main')
+          this.senha = document.getElementById('senha')
+          this.changeBtn = document.getElementById('change-btn')
+
+          this.panelChange = document.getElementById('panel-change')
+          this.oldPass = document.getElementById('old-pass')
+          this.newPass = document.getElementById('new-pass')
+          this.saveBtn = document.getElementById('save-btn')
+          this.cancelBtn = document.getElementById('cancel-btn')
+        },
+
+        bind(){
+          const {nome, sobrenome, email, setor, senha} = userData
+          this.nome.value = nome
+          this.sobrenome.value = sobrenome
+          this.setor.value = setor
+          this.email.value = email.split('@')[0]
+          this.senha.value = senha
+          this.changeBtn.onclick = () => this.changePass()
+          this.saveBtn.onclick = () => this.submitPass()
+          this.cancelBtn.onclick = () => this.back()
+        },
+
+        changePass(){
+          this.panelMain.classList.add('d-none')
+          this.panelChange.classList.remove('d-none')
+          },
+
+        submitPass(){
+
+          const email = userData.email
+          const antiga = this.oldPass.value
+          const nova = this.newPass.value
+
+          if(!antiga) return toast("Digite a senha atual")
+          if(nova.length < 6) return toast("Escolha uma senha maior")
+          
+          disable(this.saveBtn)
+          
+          toastWait('Alterando senha...')
+
+          google.script.run
+            .withFailureHandler(err => {
+              toast(err.message, 'danger')
+              enable(this.saveBtn)
+            })
+            .withSuccessHandler(() => {
+              toast('Senha alterada com sucesso', 'success')
+              userData.senha = '*'.repeat(nova.length)
+              this.back()
+          }).alterarSenha(email, antiga, nova)
+        },
+
+        back(){
+          this.panelMain.classList.remove('d-none')
+          this.panelChange.classList.add('d-none')
+          this.senha.value = userData.senha
+        }
+      },
+
+      Login: {
+
+        init() {
+          this.getDOM()
+          this.bind()
+          Control.Pass.init()
+          this.modal = new bootstrap.Modal(document.getElementById('modal-login'), {
+            backdrop: 'static',
+            keyboard: false
+          })
+          this.modal.show()
+        },
+
+        getDOM() {
+          this.user = document.getElementById('login-user')
+          this.pass = document.getElementById('login-pass')
+          this.err = document.getElementById('login-err')
+          this.loginBtn = document.getElementById('login-btn')
+          this.registerBtn = document.getElementById('register-btn')
+
+          this.painelLogin = document.getElementById('painel-login')
+          this.painelRegister = document.getElementById('painel-register')
+          this.regNome = document.getElementById('reg-nome')
+          this.regSobrenome = document.getElementById('reg-sobrenome')
+          this.regSetor = document.getElementById('reg-setor')
+          this.regEmail = document.getElementById('reg-email')
+          this.regPass = document.getElementById('reg-pass')
+          this.regErr = document.getElementById('register-err')
+          this.regBtn = document.getElementById('register-submit-btn')
+          this.backBtn = document.getElementById('back-btn')
+        },
+
+        bind() {
+          this.loginBtn.onclick = () => this.login()
+          this.registerBtn.onclick = () => this.register()
+          this.backBtn.onclick = () => this.back()
+          this.regBtn.onclick = () => this.submitRegister();
+
+          [this.user, this.pass].forEach(input => {
+            input.addEventListener('keydown', e => {
+              if (e.key === 'Enter') this.login()
+            })
+          })
+        },
+
+        setErr(msg) {
+          this.err.textContent = msg
+          this.err.classList.toggle('d-none', !msg)
+        },
+
+        login() {
+          const user = this.user.value.trim() + '@praiaclube.org.br'
+          const pass = this.pass.value
+
+          if(!user || !pass) return this.setErr('Preencha todos os campos')
+          if(pass.length < 6) return this.setErr('Escolha uma senha maior')
+          this.setErr('')
+
+          disable(this.loginBtn)
+          toastWait('Entrando...')
+
+          google.script.run
+            .withFailureHandler(err => {
+              toast(err.message, 'danger')
+              enable(this.loginBtn)
+            })
+            .withSuccessHandler(data => {
+              this.modal.hide()
+              document.body.classList.remove('view-login')
+              msg.hide()
+              userData = {senha: '*'.repeat(pass.length), ...data}
+              go(location.hash.slice(1) || start)
+          }).login(user, pass)
+        },
+
+        register() {
+          this.painelLogin.classList.add('d-none')
+          this.painelRegister.classList.remove('d-none')
+          this.regEmail.value = this.user.value
+        },
+
+        back() {
+          this.painelRegister.classList.add('d-none')
+          this.painelLogin.classList.remove('d-none')
+          this.user.value = this.regEmail.value
+        },
+
+        submitRegister() {
+          const nome = this.regNome.value.trim()
+          const sobrenome = this.regSobrenome.value.trim()
+          const setor = this.regSetor.value.trim()
+          const email = this.regEmail.value.trim() + '@praiaclube.org.br'
+          const senha = this.regPass.value
+
+          if (!nome || !setor || !email || !senha)
+            return this.regErr.textContent = 'Preencha todos os campos', this.regErr.classList.remove('d-none')
+
+          this.regErr.classList.add('d-none')
+          disable(this.regBtn)
+          toastWait('Registrando...')
+
+          google.script.run
+            .withFailureHandler(err => {
+              toast(err.message, 'danger')
+              this.regErr.classList.remove('d-none')
+              enable(this.regBtn)
+            })
+            .withSuccessHandler(() => {
+              this.back()
+              toast('Conta criada!', 'success')
+          }).cadastrar({nome, sobrenome, setor, email, senha})
+        }
+      },
+
+      Info: {
+
+        init(dom){
+          this.setTpl(dom)
+          this.getDOM(dom)
+        },
+
+        setTpl(dom){
+          const tpl = document.getElementById('view-info')
+          dom.appendChild(tpl.content.cloneNode(true))
+        },
+
+        getDOM(dom){
+          this.placeholder  = dom.querySelector('#none')
+          this.titulo       = dom.querySelector('#titulo')
+          this.tipo         = dom.querySelector('#tipo')
+          this.datasLabel   = dom.querySelector('#datas-label')
+          this.datas        = dom.querySelector('#datas')
+          this.locaisLabel  = dom.querySelector('#locais-label')
+          this.locais       = dom.querySelector('#locais')
+          this.criadorLabel = dom.querySelector('#criador-label')
+          this.criador      = dom.querySelector('#criador')
+          this.obsLabel     = dom.querySelector('#obs-label')
+          this.obs          = dom.querySelector('#obs')
+        },
+
+        renderTipo(tipo){
+          this.tipo.hidden = !tipo
+          this.tipo.textContent = tipo
+          this.tipo.className = 'badge mb-3 text-bg-' + TIPOS[tipo].button
+        },
+
+        renderDatas(datas){
+          const existe = datas.length || datas
+          this.datasLabel.hidden = !existe
+          this.datas.innerHTML = existe ? datas.map((d, i) => {
+            const inicio = new Date(d.inicio)
+            const fim = new Date(d.fim)
+            const longo = fim - inicio >= 24 * 60 * 60 * 1000
+            return `
+              <div key=${i} class="small mb-1">
+                • ${inicio.datahora()} até ${longo ? fim.datahora() : fim.hora()}
+              </div>
+            `
+          }).join('') : ''
+        },
+
+        renderLocais(locais){
+          const existe = (locais.length || locais)
+          this.locaisLabel.hidden = !existe
+          if(!existe) return 
+          const listaLocais = Control.aninharLocais(locais.sort((a,b) => Number(a.split('.')[0]) - Number(b.split('.')[0])).map(l => Control.getLocal(l)))
+
+          this.locais.innerHTML = Object.entries(listaLocais).map(([k, v], i) => {
+            return `<div class="small fw-semibold">• ${k + (v.length ? ':' :  ' (Setor inteiro)')}</div>`
+            + v.map(value => `<div class="ms-2 small">- ${value.length <= 2 ? 'Quadra' : ''} ${value}</div>`).join('')
+            }).join('')
+        },
+
+        renderCriador(criador){
+
+          const desconhecido = !(criador?.nome || criador)
+          this.criadorLabel.hidden = desconhecido
+
+          this.criador.innerHTML = `
+            <p class="${desconhecido ? 'fst-italic text-danger' : ''}">
+              ${criador?.nome || criador || 'Desconhecido'}
+            </p>
+          `
+        },
+
+        renderObs(obs){
+          this.obsLabel.hidden = !obs
+          this.obs.innerHTML = obs ? `
+            <p class="fw-semibold mt-2 mb-1">Observações</p>
+            <div class="border rounded p-1">${obs}</div>
+          ` : ''
+        },
+
+        renderFull(evento){
+          if(!evento) return this.placeholder.classList.remove('d-none')
+          this.placeholder.classList.add('d-none')
+          const {titulo, tipo, criador, datas, locais, obs} = evento
+
+          this.titulo.textContent = titulo
+          this.renderTipo(tipo)
+          this.renderCriador(criador)
+          this.renderDatas(datas)
+          this.renderLocais(locais)
+          this.renderObs(obs)
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if(!skipLogin){ 
+        const loginTpl = document.getElementById('view-login')
+        document.body.appendChild(loginTpl.content.cloneNode(true))
+        Control.Login.init()
+      }
+      else{
+        userData = {nome: "Dev", sobrenome: "da Silva", email: "aurea.ego@praiaclube.org.br", senha: "coxinha123", admin: true, setor: "Deus supremo"}
+        go(start)
+        dev = true
+      }
+    })
+
+</script>
 </body>
 
 </html>
