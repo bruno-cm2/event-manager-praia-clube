@@ -2,7 +2,7 @@
 
   .lista {
     flex: 1;
-    overflow: auto;
+    overflow: auto
   }
 
 </style>
@@ -21,9 +21,11 @@
   </div>
 </div>
 
-<div class="d-flex gap-2 flex-grow-1 overflow-hidden" style="height: 0">
-  <div class="lista col-6 border rounded overflow-auto" id="eventos"></div>
-  <div class="lista col border rounded" id="config"></div>
+<div class="d-flex gap-2 flex-grow-1" style="height: 0">
+  <div class="lista col-6 border rounded" id="eventos"></div>
+  <div class="lista col border rounded d-flex flex-column" style="min-height: 0">
+    <div class="p-3 d-flex flex-column flex-grow-1" style="min-height: 0" id="config"></div>
+  </div>
   <!-- <select id="eventos" class="form-select h-100" multiple></select>
   <select id="config" class="form-select h-100" multiple></select> -->
 </div>

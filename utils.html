@@ -27,9 +27,10 @@
   }
 
   function isInside(x,y,folga = 0){
+
     folga *= 60 * 1000
-    const depois = y.inicio ? new Date(y.inicio).getTime() < (new Date(x.fim).getTime() - folga + 1000) : true
-    const antes = y.fim ? new Date(x.inicio).getTime() < (new Date(y.fim).getTime() + folga - 1000) : true
+    const depois = y.inicio ? y.inicio.getTime() < (x.fim.getTime() - folga + 1000) : true
+    const antes = y.fim ? x.inicio.getTime() < (y.fim.getTime() + folga - 1000) : true
     return antes && depois
   }
 

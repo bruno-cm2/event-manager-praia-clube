@@ -26,6 +26,7 @@
   <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 
   <style>
+
     html,
     body {
       height: 100dvh;
@@ -35,23 +36,30 @@
       visibility: hidden;
     }
 
-    .nav-link {
+    .page {
       font-size: 1.2rem !important;
       padding-left: 2rem !important;
+      border-radius: 0 !important;
+      border: 1px solid transparent;
+      border-inline: 0 !important;
+      --bs-nav-pills-link-active-bg: #ced4da;
+    }
+
+    .link {
+      font-size: 0.775rem !important;
+      padding: 0.125rem !important;
+      padding-left: 2rem !important;
+      border-radius: 0 !important;
+      border: 1px solid transparent;
+      --bs-nav-pills-link-active-bg: #ced4da;
+      display: flex
     }
 
     .nav-item {
       padding: 0 !important;
     }
 
-    .nav-pills .nav-link {
-      border-radius: 0;
-      border: 1px solid transparent;
-      border-inline: 0 !important;
-      --bs-nav-pills-link-active-bg: #ced4da;
-    }
-
-    .nav-pills .nav-link:not(.active):hover {
+    .nav-link:not(.active):hover {
       background-color: var(--bs-light);
       border-color: var(--bs-border-color)
     }
@@ -77,7 +85,7 @@
     }
 
     .bi {
-      margin-right: 0.5rem !important;
+      margin-right: 0.5rem;
     }
 
     h2 {
@@ -117,6 +125,11 @@
     .btn-sm {
       font-size: 0.75rem
     }
+
+    .badge {
+      padding-bottom: 0.5em;
+    }
+
   </style>
 
 </head>
@@ -133,6 +146,10 @@
   </template>
 
   <template id="view-add">
+    <?!= HtmlService.createHtmlOutputFromFile('add').getContent() ?>
+  </template>
+
+  <template id="view-edit">
     <?!= HtmlService.createHtmlOutputFromFile('add').getContent() ?>
   </template>
 
@@ -155,32 +172,46 @@
       <ul class="nav nav-pills d-flex flex-column h-100">
         <img src="https://x1futsal.com.br/wp-content/uploads/2021/04/Escudo-Completo-Praia-Clube.png" class="img-fluid w-50 mx-auto mt-4 mb-4">
         <li class="nav-item">
-          <a class="nav-link w-100 text-start text-dark" href="#add">
+          <a class="nav-link page w-100 text-start text-dark" href="#add">
             <i class="bi bi-pencil-square text-primary"></i>Criar
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link w-100 text-start text-dark" href="#eventos">
+          <a class="nav-link page w-100 text-start text-dark" href="#eventos">
             <i class="bi bi-calendar-event text-success"></i>Eventos
           </a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link w-100 text-start text-dark" href="#locais">
+        <li class="nav-item mb-auto">
+          <a class="nav-link page w-100 text-start text-dark" href="#locais">
             <i class="bi bi-geo-alt text-danger"></i>Locais
           </a>
         </li>
-        <li class="nav-item mt-auto mb-3">
-          <a class="nav-link w-100 text-start text-dark" href="#account">
+        <li class="nav-item mb-3">
+          <a class="nav-link page w-100 text-start text-dark" href="#account">
             <i class="bi bi-person-circle text-dark"></i>Conta
           </a>
         </li>
+        <div class="border-top py-3">
+            <li class="nav-item">
+              <a class="nav-link link w-100 text-start" href="https://docs.google.com/spreadsheets/d/1f20UV83jUF4-trMnfSD2lJ5m3BiQ0ttlTci3hMSs9yc" target="_blank">
+                <i class="bi bi-table"></i>Planilha
+                <i class="bi bi-box-arrow-up-right ms-auto me-4"></i>
+              </a>
+            </li>
+          <li class="nav-item">
+            <a class="nav-link link w-100 text-start" href="https://calendar.google.com/calendar/embed?src=c_aa0e8179222c447fced2860bddaf34f3f44e533c8a87cce5058c31ae27882bf3%40group.calendar.google.com&ctz=America%2FSao_Paulo" target="_blank">
+              <i class="bi bi-google"></i>Google Agenda
+              <i class="bi bi-box-arrow-up-right ms-auto me-4"></i>
+            </a>
+          </li>
+        </div>
       </ul>
     </aside>
 
     <!-- MAIN -->
-    <main class="col d-flex flex-column border rounded-3 shadow-sm bg-white m-3 p-4">
+    <main class="col d-flex flex-column border rounded-3 shadow-sm bg-white m-3 p-4" style="min-height: 0">
       <div class="header d-flex align-items-center border-bottom pb-1 mb-4" id="page-header"></div>
-      <div id="content"></div>
+      <div id="content" class="d-flex flex-column flex-grow-1" style="min-height: 0"></div>
     </main>
 
   </div>
@@ -217,9 +248,6 @@
     </div>
   </div>
 
-  <!-- EDIT -->
-  <?!= HtmlService.createHtmlOutputFromFile('edit').getContent() ?>
-
   <!-- UTILS -->
   <?!= HtmlService.createHtmlOutputFromFile('utils').getContent() ?>
 
@@ -227,9 +255,6 @@
     const skipLogin = true
     const start = 'add'
     let dev = false
-
-    console.log(typeof emojilib)
-    console.log(Object.keys(window).filter(k => k.toLowerCase().includes('emoji')))
 
     const EV = <?!= JSON.stringify(ev) ?>;
     const LC = <?!= JSON.stringify(lc) ?>;
@@ -246,7 +271,6 @@
         Object.entries(data).forEach(([emoji, nomes]) => {
           nomes.forEach(nome => shortcodeMap[nome] = emoji)
         })
-        console.log('emojis carregados:', shortcodeMap['fire'])
       })
 
     //
@@ -273,7 +297,6 @@
       const control = Control[capital(page)]
 
       mainHeader.innerHTML = control.header
-      content.classList = `col-${control.size} d-flex flex-column flex-grow-1`
       content.innerHTML = ''
       content.appendChild(tpl.content.cloneNode(true))
 
@@ -320,7 +343,7 @@
         <div class="d-flex align-items-center gap-2">
           <div class="spinner-border spinner-border-sm" role="status"></div>
           <span>${text}</span>
-          <span class="badge text-bg-danger ms-2${errors ? '' : ' d-none'}">${errors} ${errors > 1 ? 'erros' : 'erro'}</span>
+          <span class="badge text-bg-danger ms-2 ${errors ? '' : 'd-none'}">${errors} ${errors > 1 ? 'erros' : 'erro'}</span>
         </div>
       `
       msg = bootstrap.Toast.getOrCreateInstance(toastMsg, {autohide: false})
@@ -369,18 +392,20 @@
         return Control.ev.eventos.find(e => e.id == eventoId)
       },
 
-      aninharLocais(listaLocais){
+      aninharLocais(listaLocais) {
         let setor = null
-        const aninhada = {}
+        const aninhada = new Map()
+
         listaLocais.forEach(l => {
-          if(setor?.id != l.id.split('.')[0]){
+          if (setor?.id != l.id.split('.')[0]) {
             setor = Control.getLocal(l.id.split('.')[0])
-            aninhada[setor.nome] = []
+            aninhada.set(setor, [])
           }
-          if(l.tipo == 'quadra'){
-            aninhada[setor.nome].push(l.nome)
+          if (l.tipo == 'quadra') {
+            aninhada.get(setor).push(l)
           }
         })
+
         return aninhada
       },
       
@@ -388,19 +413,21 @@
 
         header: '<i class="bi bi-pencil-fill text-primary bi-underline" style="border-bottom: 1.5px solid currentColor; line-height: 1; font-size: 1.4rem;"></i><h2>Criar Evento</h2>',
 
-        size: '7',
-
         init() {
 
           this.CACHE = CACHE
           this.locaisSel = []
+          this.datasSel = []
 
           this.getDOM()
           this.bind()
+          Control.Info.init(this.preview)
           this.renderListaLocais()
           this.renderCalendar()
           this.renderTipos()
           this.titulo.focus()
+          Control.Info.renderFull()
+          Control.Info.renderCriador(userData.nome)
         },
 
         getDOM() {
@@ -432,54 +459,69 @@
             }
           })
 
+          this.preview = document.getElementById('preview')
+
+          this.submit = document.getElementById('submit')
           this.submitBtn = document.getElementById('submit-btn')
         },
 
         bind(){
+          this.titulo.oninput = () => Control.Info.renderTitulo(this.titulo.value)
           this.buscaLocais.oninput = () => this.renderListaLocais(this.buscaLocais.value)
-          this.addBtn.onclick = () => this.addData()
+          this.addBtn.onclick = () => this.selecionarData()
           this.reverseBtn.onclick = () => this.reverseDates()
           this.submitBtn.onclick = () => this.adicionar()
           let replacing = false
 
           this.obs.on('text-change', () => {
-            if (replacing) return
-
-            const text = this.obs.getText()
-            const match = text.match(/:([a-z0-9_]+):/)
-            if (!match) return
-
-            const emoji = shortcodeMap[match[1]]
-            if (!emoji) return
-
-            replacing = true
-            const index = text.indexOf(match[0])
-            this.obs.deleteText(index, match[0].length)
-            this.obs.insertText(index, emoji)
-            this.obs.setSelection(index + emoji.length)
-            replacing = false
+            if (!replacing){
+              const text = this.obs.getText()
+              const match = text.match(/:([a-z0-9_]+):/)
+              if (match){
+                const emoji = shortcodeMap[match[1]]
+                if (emoji){
+                  replacing = true
+                  const index = text.indexOf(match[0])
+                  this.obs.deleteText(index, match[0].length)
+                  this.obs.insertText(index, emoji)
+                  this.obs.setSelection(index + emoji.length)
+                  replacing = false
+                }
+              }
+            } 
+            Control.Info.renderObs(this.obs.root.innerHTML)
           })
         },
 
         cache(eventCache){
           const {titulo, tipo, datas, locais, obs} = eventCache
 
-          this.titulo.value = titulo || ''
+          this.titulo.value = titulo
+          this.tipo.querySelector(`#${tipo}`).click()
 
-          if(tipo){
-            this.tipoBtn.textContent = tipo
-            this.tipoBtn.classList.replace('btn-outline-secondary', `btn-${TIPOS[tipo].button}`)
+          if(datas.length) this.datasSel = datas.map(d => ({
+            inicio: new Date(d.inicio),
+            fim: new Date(d.fim)
+          }))
+          
+          locais.map(l => Control.getLocal(l)).filter(Boolean).forEach(l => this.selecionarLocal(l))
+
+          if(obs?.delta) this.obs.setContents(JSON.parse(obs.delta))
+          else this.obs.setText(obs?.texto || '')
+
+          Control.Info.renderFull(eventCache)
+
+          const removeLocal = (id) => {
+            this.apagarLocal(id)
+            Control.Info.renderLocais(this.locaisSel, removeLocal)
           }
+          Control.Info.renderLocais(this.locaisSel, removeLocal)
 
-          if(datas.length) datas.forEach(d => this.renderData(d))
-
-          this.locaisSel = locais.map(l => Control.getLocal(l))
-          if(this.locaisSel.length) {
-            this.renderListaLocais()
-            this.renderSelecionados()
+          const removeData = (i) => {
+            this.datasSel.splice(i, 1)
+            Control.Info.renderDatas(this.datasSel, removeData)
           }
-
-          this.obsInput.value = obs?.texto || ''
+          Control.Info.renderDatas(this.datasSel, removeData)
         },
 
         renderListaLocais(filtro = '') {
@@ -501,7 +543,14 @@
             this.listaLocais.appendChild(header)
 
             // quadras
-            setor.quadras.filter(q => !q.disabled && q.nome.toLowerCase().includes(termo)).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR')).forEach(q => {
+            setor.quadras.filter(q => !q.disabled && q.nome.toLowerCase().includes(termo)).sort((a, b) => {
+              const aNum = !isNaN(a.nome)
+              const bNum = !isNaN(b.nome)
+              if (aNum && bNum) return Number(a.nome) - Number(b.nome)
+              if (aNum !== bNum) return bNum - aNum
+              return a.nome.localeCompare(b.nome, 'pt-BR')
+            })
+            .forEach(q => {
               const item = document.createElement('div')
               item.className = 'dropdown-item rounded p-0 ps-3'
               item.id = q.id
@@ -512,37 +561,53 @@
           })
         },
 
-        renderSelecionados() {
-          this.locaisSelecionados.innerHTML = ''
-          this.locaisSel.sort((a, b) => {
-            const pa = a.tipo == 'setor' ? 0 : 1
-            const pb = b.tipo == 'setor' ? 0 : 1
-
-            return (pa - pb || Number(a.nome) - Number(b.nome) ||  a.nome.localeCompare(b.nome, 'pt-BR'))
-          }).forEach(l => {
-            const btn = document.createElement('button')
-            btn.className = 'btn btn-sm py-0 align-items-center rounded-2 gap-1 mt-1 fs-8'
-            btn.textContent = l.tipo == 'quadra' ? `${l.setor}: ${l.nome}` : l.nome
-            btn.classList.add('btn-' + (l.tipo == 'setor' ? 'primary' : 'success'))
-            btn.onclick = () => this.apagarLocal(l)
-            this.locaisSelecionados.appendChild(btn)
-          })
-        },
-
         selecionarLocal(local) {
           this.listaLocais.querySelectorAll(`[id^="${local.id + '.'}"]`).forEach(l => l.classList.add('disabled'))
           this.listaLocais.querySelector(`[id="${local.id}"]`).classList.add('disabled')
 
           this.locaisSel = [local, ...this.locaisSel.filter(l => !l.id.startsWith(local.id + '.'))]
-          this.renderSelecionados()
+          const remove = (id) => {
+            this.apagarLocal(id)
+            Control.Info.renderLocais(this.locaisSel, remove)
+          }
+          Control.Info.renderLocais(this.locaisSel, remove)
         },
 
-        apagarLocal(local){
-          this.listaLocais.querySelectorAll(`[id^="${local.id + '.'}"]`).forEach(l => l.classList.remove('disabled'))
-          this.listaLocais.querySelector(`[id="${local.id}"]`).classList.remove('disabled')
+        apagarLocal(localId){
+          this.listaLocais.querySelectorAll(`[id^="${localId + '.'}"]`).forEach(l => l.classList.remove('disabled'))
+          this.listaLocais.querySelector(`[id="${localId}"]`).classList.remove('disabled')
 
-          this.locaisSel = this.locaisSel.filter(l => l.id != local.id)
-          this.renderSelecionados()
+          this.locaisSel = this.locaisSel.filter(l => !l.id.startsWith(localId))
+        },
+
+        renderTipos(){            
+          this.tipoSelecionado = null            
+          this.tipoBtn.textContent = 'Tipo'
+          this.tipo.innerHTML = ''
+          Object.entries(TIPOS).forEach(([nome,cor]) =>{
+            const li = document.createElement('li')            
+            li.classList.add('px-1')
+            const a = document.createElement('li')            
+            a.className = "dropdown-item rounded ps-2"
+            a.textContent = nome
+            a.id = nome            
+            a.style.cssText = `--bs-dropdown-link-active-bg: var(--bs-${cor.button}); --bs-dropdown-link-active-color: white`            
+            a.onclick = (e) => {            
+              e.preventDefault()            
+              Control.Info.renderTipo(a.textContent)
+              this.preview.classList.forEach(cls => {
+                if (cls.startsWith('border-')) this.preview.classList.remove(cls)
+              })
+              this.preview.classList.add('border-2', `border-${cor.button}`)
+              this.tipoBtn.textContent = a.textContent
+              this.tipoBtn.classList.forEach(cls => {
+                if (cls.startsWith('btn-')) this.tipoBtn.classList.remove(cls)
+              })
+              this.tipoBtn.classList.add(`btn-${cor.button}`)
+            }
+            li.appendChild(a)            
+            this.tipo.appendChild(li)            
+          })
         },
 
         renderCalendar() {
@@ -574,7 +639,7 @@
           })
         },
 
-        addData() {
+        selecionarData() {
           if(!this.inicio.dataset.date) return toast('Selecione uma data de início', 'warning')
           if(!this.fim.dataset.date) return toast('Selecione uma data de fim', 'warning')
   
@@ -586,36 +651,21 @@
             this.reverseDates()
           }
           
-          const datas = [...this.datasSelecionadas.querySelectorAll('button')].map(d => JSON.parse(d.dataset.date))
-          
           if(Math.abs(intervalo) < 60 * 60 * 1000) return toast('Escolha um intervalo de pelo menos 1 hora', 'warning')
-
-          date.inicio = date.inicio.toISOString()
-          date.fim = date.fim.toISOString()
 
           const folga = 30
 
-          if(datas.some(d => isInside(date, d))) return toast('Essa data já foi escolhida', 'warning')
-          if(datas.some(d => isInside(date, d, folga))) return toast(`No mínimo ${folga} minutos de folga entre datas`, 'warning')
+          if(this.datasSel.some(d => isInside(date, d))) return toast('Essa data já foi escolhida', 'warning')
+          if(this.datasSel.some(d => isInside(date, d, folga))) return toast(`No mínimo ${folga} minutos de folga entre datas`, 'warning')
 
-          this.renderData(date)
-        },
+          this.datasSel.push(date)
 
-        renderData(date){
-          const inicio = new Date(date.inicio)
-          const fim = new Date(date.fim)
+          const remove = (i) => {
+            this.datasSel.splice(i, 1)
+            Control.Info.renderDatas(this.datasSel, remove)
+          }
 
-          const longo = fim - inicio >= 24 * 60 * 60 * 1000
-          const shortFormat = inicio.datahora() + ' até ' + fim.hora()
-          const longFormat = inicio.datahora() + ' até ' + fim.datahora()
-
-          const btn = document.createElement('button')
-          btn.className = 'btn btn-sm py-0 align-items-center rounded-2 gap-1 mt-1 fs-8'
-          btn.textContent = longo ? longFormat : shortFormat
-          btn.dataset.date = JSON.stringify(date)
-          btn.classList.add('btn-' + (longo ? 'primary' : 'success'))
-          btn.onclick = () => btn.remove()
-          this.datasSelecionadas.appendChild(btn)
+          Control.Info.renderDatas(this.datasSel, remove)
         },
 
         reverseDates(){
@@ -632,68 +682,37 @@
           if(this.fim.textContent == 'Início') this.fim.textContent = 'Fim'
         },
 
-        renderTipos(){
-          this.tipoSelecionado = null
-          this.tipoBtn.textContent = 'Tipo'
-
-          this.tipo.innerHTML = ''
-
-          Object.entries(TIPOS).forEach(([nome,cor]) =>{
-
-            const li = document.createElement('li')
-            li.classList.add('px-1')
-
-            const a = document.createElement('li')
-            a.className = "dropdown-item rounded ps-2"
-            a.textContent = nome
-            a.style.cssText = `--bs-dropdown-link-active-bg: var(--bs-${cor}); --bs-dropdown-link-active-color: white;`
-            a.onclick = (e) => {
-              e.preventDefault()
-              this.tipoSelecionado = a.textContent
-              this.tipoBtn.textContent = a.textContent
-              this.tipoBtn.classList.remove('is-invalid')
-
-              Array.from(this.tipoBtn.classList).forEach(c => {
-                if (c.startsWith('btn-')) this.tipoBtn.classList.remove(c)
-              })
-
-              this.tipoBtn.classList.add('btn-' + cor.button)
-            }
-
-            li.appendChild(a)
-            this.tipo.appendChild(li)
-          })
-        },
-
-        getDates(){
-          return [...this.datasSelecionadas.querySelectorAll('button')]
-        },
-
         buildEvento(){
 
           const titulo = this.titulo.value
-          if(!titulo || titulo.length <= 2) return toast('Escolha um título', 'warning')
-
-          const tipo = this.tipoBtn.textContent
-          if(tipo == 'Tipo') return toast('Escolha um tipo', 'warning')
-
-          let buttons = this.getDates()
-
-          if(!buttons || buttons.length == 0){
-            this.addData()
-            buttons = this.getDates()
-            if(!buttons || buttons.length == 0) return
+          if(!titulo || titulo.length <= 2) {
+            toast('Escolha um título', 'warning')
+            return
           }
 
-          const datas = buttons.map(d => JSON.parse(d.dataset.date))
+          const tipo = this.tipoBtn.textContent
+          if(tipo == 'Tipo') {
+            toast('Escolha um tipo', 'warning')
+            return
+          }
+          
+          if(!this.datasSel.length){
+            this.selecionarData()
+            if(!this.datasSel.length) return
+          }
+
+          const datas = this.datasSel.map(d => ({
+            inicio: new Date(d.inicio).toISOString(),
+            fim: new Date(d.fim).toISOString()
+          }))
 
           const locais = this.locaisSel
           if(!locais || locais.length == 0) return toast('Escolha ao menos um local', 'warning')
 
           const obs = {
-            texto: this.quill.getText().trim(),
-            html: this.quill.root.innerHTML,
-            delta: JSON.stringify(this.quill.getContents())
+            texto: this.obs.getText().trim(),
+            html: this.obs.root.innerHTML,
+            delta: JSON.stringify(this.obs.getContents())
           }
 
           const {nome, sobrenome, email} = userData
@@ -705,6 +724,8 @@
           
           const evento = this.buildEvento()
 
+          if(!evento) return
+
           disable(this.submitBtn)
 
           toastWait("Adicionando evento...")
@@ -712,7 +733,7 @@
           google.script.run.withFailureHandler(err => {
             try{
               err = JSON.parse(err.message || err)
-              this.showError(err.locais)
+              //this.showError(err.locais)
               toast(err.message, 'danger')
             }
             catch(e){
@@ -728,47 +749,37 @@
 
       Edit: {
 
-        header: `
-        <i class="bi bi-pencil-fill text-warning bi-underline" style="border-bottom: 1.5px solid currentColor; line-height: 1; font-size: 1.4rem;"></i>
-        <h2>Editar Evento</h2>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>`
-        ,
+        header: '<i class="bi bi-pencil-fill text-warning bi-underline" style="border-bottom: 1.5px solid currentColor; line-height: 1; font-size: 1.4rem;"></i><h2>Editar Evento</h2>',
 
-        init(ev){
-          this.getDOM()
-          this.bind()
-          this.evento = ev
-
+        init(){
+          this.evento = Control.Eventos?.evento
+          if(!this.evento) return go('eventos')
           Control.Add.init()
-          Control.Add.cache(ev)
-
-          this.modal.show()
+          this.getDOM()        
+          Control.Add.cache(this.evento)
+          this.bind()
         },
 
         getDOM(){
-          this.modalHeader = document.getElementById('edit-header')
-          this.modalHeader.innerHTML = this.header
+          
+          const submit = Control.Add.submit
+          
+          this.saveBtn = document.createElement('button')
+          this.saveBtn.className = "btn btn-outline-primary rounded"
+          this.saveBtn.textContent = 'Salvar'
 
-          this.body = document.getElementById('edit-body')
-          this.addTpl = document.getElementById('view-add')
-          this.body.innerHTML = ''
-          this.body.appendChild(this.addTpl.content.cloneNode(true))
+          this.cancelBtn = document.createElement('button')
+          this.cancelBtn.className = "btn btn-outline-secondary rounded"
+          this.cancelBtn.textContent = 'Voltar'
 
-          this.addContainer = document.getElementById('add-container')
-          this.addContainer.classList.replace('gap-4', 'gap-3')
-
-          this.submit = document.getElementById('submit')
-          this.submit.classList.replace('d-flex', 'd-none')
-
-          this.confirmBtn = document.getElementById('edit-confirm')
-          this.cancelBtn = document.getElementById('edit-cancel')
-          this.modal = new bootstrap.Modal(document.getElementById('modal-edit'))
-
+          submit.innerHTML = ''
+          submit.appendChild(this.saveBtn)
+          submit.appendChild(this.cancelBtn)
         },
 
         bind(){
-          this.confirmBtn.onclick = () => this.salvar()
-          this.cancelBtn.onclick = () => this.modal.hide()
+          this.saveBtn.onclick = () => this.salvar()
+          this.cancelBtn.onclick = () => go('eventos')
         },
 
         salvar(){
@@ -779,9 +790,9 @@
           const evento = Control.Add.buildEvento()
           evento.id = id
           evento.criador = this.evento.criador
-          evento.obs.link = this.evento.obs.link
+          evento.obs.link = this.evento.obs?.link
 
-          const buttons = [this.confirmBtn, this.cancelBtn]
+          const buttons = [this.saveBtn, this.cancelBtn]
 
           disable(buttons)
 
@@ -790,7 +801,7 @@
           google.script.run.withFailureHandler(err => {
             try{
               err = JSON.parse(err.message || err)
-              this.showError(err.locais)
+              //this.showError(err.locais)
               toast(err.message, 'danger')
             }
             catch(e){
@@ -807,8 +818,6 @@
       Eventos: {
 
         header: '<i class="bi bi-calendar2-event-fill text-success" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Lista de Eventos</h2>',
-
-        size: '12',
 
         getDOM() {
           this.busca   = document.getElementById('busca')
@@ -837,8 +846,15 @@
 
         init() {
           this.eventos = Control.ev.eventos.slice().sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'))
+          .map(e => ({
+            ...e,
+            datas: e.datas.map(d => ({
+              ...d,
+              inicio: new Date(d.inicio),
+              fim: new Date(d.fim)
+            }))
+          }))
           this.getDOM()
-          Control.Info.init(this.config)
           this.bind()
           this.renderLista()
           this.renderCalendar()
@@ -887,9 +903,14 @@
           const admin = (ev && (ev.criador?.email == email || ev.criador === email || ev.criador == nome || userData.admin))
 
           toggle([this.editBtn, this.delBtn], admin)
-
-          Control.Info.renderFull(ev)
-
+          if(!ev) {
+            this.config.innerHTML = '<option disabled>Nenhum evento selecionado</option>'
+          }
+          else {
+            this.config.innerHTML = ''
+            Control.Info.init(this.config)
+            Control.Info.renderFull(ev)
+          }
         },
 
         filtrar() {
@@ -918,7 +939,7 @@
             onChange: (selectedDates, dateStr) => {
               this.periodoBtn.textContent = `Período: ${dateStr}`
               this.periodoBtn.classList.replace('btn-outline-secondary', 'btn-secondary')
-              const [inicio, fim] = selectedDates.map(d=> d?.toISOString())
+              const [inicio, fim] = selectedDates
               this.datas = {inicio, fim}
               this.filtrar()
               }
@@ -926,12 +947,15 @@
         },
 
         editar(){
-          const ev = Control.getEvento(this.selected.key)
-          if(!ev) return toast('Erro ao acessar o evento', 'danger')
-          Control.Edit.init(ev)
+          if(!this.selected) return toast('Erro ao acessar o evento', 'danger')
+          this.evento = Control.getEvento(this.selected.key)
+          if(!this.evento) return toast('Erro ao acessar o evento', 'danger')
+
+          go('edit')
         },
 
         async apagar() {
+          if(!this.selected) return toast('Erro ao acessar o evento', 'danger')
           const ev = Control.getEvento(this.selected.key)
           if(!ev) return toast('Erro ao acessar o evento', 'danger')
           const response = await confirm(`Deseja apagar o evento ${ev.titulo}?`)
@@ -1058,7 +1082,7 @@
         },
 
         renderSetores(){
-          const setores = this.filtrar(Control.lc.setores.slice(), this.busca.value).filter(s => !s.disabled).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+          const setores = this.filtrar(Control.lc.setores.slice(), this.busca.value.toLowerCase()).filter(s => !s.disabled).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
           this.listaSetores.innerHTML = ''
 
           if (!setores.length) {
@@ -1080,7 +1104,17 @@
         renderQuadras(){
           const setor = Control.lc.setores.find(s => s.id === this.listaSetores.value && !s.disabled)
           if (!setor) return
-          const quadras = this.filtrar(setor.quadras, this.busca2.value).filter(q => !q.disabled).sort((a, b) => Number(a.nome) - Number(b.nome) || a.nome.localeCompare(b.nome, 'pt-BR'))
+          const quadras = this.filtrar(setor.quadras, this.busca2.value.toLowerCase()).filter(q => !q.disabled).sort((a, b) => {
+            const aNum = !isNaN(a.nome)
+            const bNum = !isNaN(b.nome)
+            if (aNum && bNum) return Number(a.nome) - Number(b.nome)
+            if (aNum !== bNum) return bNum - aNum
+            const aLetra = a.nome.length === 1
+            const bLetra = b.nome.length === 1
+            if (aLetra !== bLetra) return bLetra - aLetra
+            if (aLetra && bLetra) return a.nome.localeCompare(b.nome, 'pt-BR')
+            return a.nome.localeCompare(b.nome, 'pt-BR')
+          })
           this.listaQuadras.innerHTML = ''
 
           if (!quadras || !quadras.length){
@@ -1437,9 +1471,13 @@
 
       Info: {
 
+        span(id){
+          return `<span id=${id} class="text-danger" style="cursor:pointer">×</span>`
+        },
+
         init(dom){
           this.setTpl(dom)
-          this.getDOM(dom)
+          this.getDOM()
         },
 
         setTpl(dom){
@@ -1448,84 +1486,107 @@
         },
 
         getDOM(dom){
-          this.placeholder  = dom.querySelector('#none')
-          this.titulo       = dom.querySelector('#titulo')
-          this.tipo         = dom.querySelector('#tipo')
-          this.datasLabel   = dom.querySelector('#datas-label')
-          this.datas        = dom.querySelector('#datas')
-          this.locaisLabel  = dom.querySelector('#locais-label')
-          this.locais       = dom.querySelector('#locais')
-          this.criadorLabel = dom.querySelector('#criador-label')
-          this.criador      = dom.querySelector('#criador')
-          this.obsLabel     = dom.querySelector('#obs-label')
-          this.obs          = dom.querySelector('#obs')
+          this.container    = document.getElementById('info-container')
+          this.titulo       = document.getElementById('info-titulo')
+          this.tipo         = document.getElementById('info-tipo')
+          this.datasLabel   = document.getElementById('datas-label')
+          this.datas        = document.getElementById('info-datas')
+          this.locaisLabel  = document.getElementById('locais-label')
+          this.locais       = document.getElementById('info-locais')
+          this.criadorLabel = document.getElementById('criador-label')
+          this.criador      = document.getElementById('info-criador')
+          this.obsLabel     = document.getElementById('obs-label')
+          this.obs          = document.getElementById('info-obs')
+        },
+
+        renderTitulo(titulo){
+          this.titulo.textContent = titulo || 'Título'
+          this.titulo.classList.toggle('fst-italic', !titulo)
         },
 
         renderTipo(tipo){
-          this.tipo.hidden = !tipo
-          this.tipo.textContent = tipo
-          this.tipo.className = 'badge mb-3 text-bg-' + TIPOS[tipo].button
+          this.tipo.className = tipo
+            ? 'badge mb-3 text-bg-' + (TIPOS[tipo]?.button || 'secondary')
+            : 'badge mb-3 fst-italic text-bg-secondary'
+          this.tipo.textContent = tipo || 'Tipo'
         },
 
-        renderDatas(datas){
-          const existe = datas.length || datas
-          this.datasLabel.hidden = !existe
+        renderDatas(datas, remove = null){
+          const existe = datas?.length
+          this.datasLabel.classList.toggle("fst-italic", !existe)
           this.datas.innerHTML = existe ? datas.map((d, i) => {
-            const inicio = new Date(d.inicio)
-            const fim = new Date(d.fim)
+            let {inicio, fim} = d
             const longo = fim - inicio >= 24 * 60 * 60 * 1000
             return `
-              <div key=${i} class="small mb-1">
-                • ${inicio.datahora()} até ${longo ? fim.datahora() : fim.hora()}
-              </div>
-            `
-          }).join('') : ''
+            <div class="d-flex gap-1 align-items-baseline">
+              <div class="small">• ${inicio.datahora()} até ${longo ? fim.datahora() : fim.hora()}</div>
+              ${remove ? this.span(i) : ''}
+            </div>`
+          }).join('')
+          : 
+          `<div class="small fst-italic">• Data 1</div>
+          <div class="small fst-italic">• Data 2</div>`
+          if(remove && existe) this.datas.querySelectorAll('span').forEach(d => {
+            d.style.cursor = 'pointer'
+            d.onclick = () => remove(d.id)
+          })
         },
 
-        renderLocais(locais){
-          const existe = (locais.length || locais)
-          this.locaisLabel.hidden = !existe
-          if(!existe) return 
-          const listaLocais = Control.aninharLocais(locais.sort((a,b) => Number(a.split('.')[0]) - Number(b.split('.')[0])).map(l => Control.getLocal(l)))
+        renderLocais(locais, remove = null){
+          const existe = locais?.length
+          this.locaisLabel.classList.toggle("fst-italic", !existe)
+          const listaLocais = locais ? Control.aninharLocais(locais.sort((a,b) => Number(a.id.split('.')[0]) - Number(b.id.split('.')[0]))) : null
 
-          this.locais.innerHTML = Object.entries(listaLocais).map(([k, v], i) => {
-            return `<div class="small fw-semibold">• ${k + (v.length ? ':' :  ' (Setor inteiro)')}</div>`
-            + v.map(value => `<div class="ms-2 small">- ${value.length <= 2 ? 'Quadra' : ''} ${value}</div>`).join('')
-            }).join('')
+          this.locais.innerHTML = existe ? [...listaLocais.entries()].map(([k, v]) => {
+            return `
+            <div class="d-flex gap-1 align-items-baseline">
+              <div class="small fw-semibold">• ${k.nome + (v.length ? ':' :  ' (Setor inteiro)')}</div>
+              ${remove ? this.span(k.id) : ''}
+            </div>`
+            + v.map(value => `
+              <div class="d-flex gap-1">
+                <div class="ms-2 small">- ${value.nome.length <= 2 ? 'Quadra' : ''} ${value.nome}</div>
+                ${remove ? this.span(value.id) : ''}
+              </div>`
+            ).join('')
+          }).join('')
+          : 
+          `<div class="small fst-italic fw-semibold">• Setor 1</div>
+          <div class="ms-2 fst-italic small">- Quadra 1</div>
+          <div class="ms-2 fst-italic small">- Quadra 2</div>
+          <div class="small fst-italic fw-semibold">• Setor 2 (Setor inteiro)</div>`
+          
+          if(remove && existe) this.locais.querySelectorAll('span').forEach(l => {
+            l.style.cursor = 'pointer'
+            l.onclick = () => remove(l.id)
+          })
         },
 
         renderCriador(criador){
-
           const desconhecido = !(criador?.nome || criador)
-          this.criadorLabel.hidden = desconhecido
 
-          this.criador.innerHTML = `
-            <p class="${desconhecido ? 'fst-italic text-danger' : ''}">
-              ${criador?.nome || criador || 'Desconhecido'}
-            </p>
-          `
+          this.criador.textContent = criador?.nome || criador || 'Desconhecido'
+          this.criador.classList.toggle("text-danger", desconhecido)
+          this.criador.classList.toggle("fst-italic", desconhecido)
         },
 
         renderObs(obs){
-          this.obsLabel.hidden = !obs
-          this.obs.innerHTML = obs ? `
-            <p class="fw-semibold mt-2 mb-1">Observações</p>
-            <div class="border rounded p-1">${obs}</div>
-          ` : ''
+          const vazio = !obs || obs.replace(/<[^>]*>/g, '').trim() === ''
+          this.obsLabel.classList.toggle('fst-italic', vazio)
+          this.obs.innerHTML = vazio ? '' : `<div class="border rounded p-2">${obs.trim()}</div>`
+          this.container.scrollTop = this.container.scrollHeight
         },
 
-        renderFull(evento){
-          if(!evento) return this.placeholder.classList.remove('d-none')
-          this.placeholder.classList.add('d-none')
+        renderFull(evento = {}){
           const {titulo, tipo, criador, datas, locais, obs} = evento
-
-          this.titulo.textContent = titulo
+          this.renderTitulo(titulo)
           this.renderTipo(tipo)
           this.renderCriador(criador)
           this.renderDatas(datas)
-          this.renderLocais(locais)
-          this.renderObs(obs)
-        }
+          this.renderLocais(locais?.map(l => Control.getLocal(l)))
+          this.renderObs(obs?.html || obs?.texto || null)
+          this.container.scrollTop = 0
+        },
       }
     }
 
@@ -1542,7 +1603,7 @@
       }
     })
 
-</script>
+  </script>
 </body>
 
 </html>

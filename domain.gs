@@ -83,22 +83,6 @@ class Locais {
     return quadra
   }
 
-  static renomearLocal(id, nome) {
-    const db = this.getDB()
-    const local = this.busca(id, true)
-
-    const setor = db.setores.find(s.id == id.split('.'))
-    const tipo = local.tipo
-
-    const igual = tipo == 'setor' ? db.setores.find(s => s.nome == nome) : setor.quadras.find(q => q.nome == nome)
-
-    if (igual) throw new Error(`${capital(tipo)} com o nome '${nome}' já existe` + (igual.disabled ? ' [Desativada]' : ''))
-
-    local.nome = nome
-
-    this._saveDB(db)
-  }
-
   static adicionarEvento(id, locais) {
 
     const db = this.getDB()
@@ -109,6 +93,22 @@ class Locais {
         l.eventos.push(id)
       }
     })
+
+    this._saveDB(db)
+  }
+
+  static renomearLocal(id, nome) {
+    const db = this.getDB()
+    const local = this.busca(id, true)
+
+    const setor = db.setores.find(s => s.id == id.split('.')[0])
+    const tipo = local.tipo
+
+    const igual = tipo == 'setor' ? db.setores.find(s => s.nome == nome) : setor.quadras.find(q => q.nome == nome)
+
+    if (igual) throw new Error(`${capital(tipo)} com o nome '${nome}' já existe` + (igual.disabled ? ' [Desativada]' : ''))
+
+    local.nome = nome
 
     this._saveDB(db)
   }
@@ -233,7 +233,7 @@ class Eventos {
         end: { dateTime: fim },
         location: locais.map(l => l.tipo == 'setor' ? l.nome : l.setor + ' - ' + l.nome),
         colorId: cores[tipo].calendar,
-        description: evento.obs.texto,
+        description: evento.obs.html,
         extendedProperties: {
           private: {
             planilhaID: evento.id,
@@ -250,7 +250,7 @@ class Eventos {
       return data
     })
 
-    evento.obs.link = Docs.create(evento.titulo, evento.obs.texto)
+    evento.obs.link = Docs.create(evento.titulo, evento.obs)
 
     evento.datas = datas
 
@@ -299,7 +299,7 @@ class Eventos {
         end: { dateTime: fim },
         location: locais.map(l => l.tipo == 'setor' ? l.nome : l.setor + ' - ' + l.nome),
         colorId: cores[tipo].calendar,
-        description: evento.obs.texto,
+        description: evento.obs.html,
         extendedProperties: {
           private: {
             planilhaID: evento.id,
@@ -316,7 +316,7 @@ class Eventos {
       return data
     })
 
-    Docs.edit(evento.obs.link, evento.obs.texto)
+    Docs.edit(evento.obs)
 
     evento.datas = datas
 
@@ -339,7 +339,7 @@ class Eventos {
       try { Calendar.Events.remove(idAgenda, data.serverID) } catch { }
     }
 
-    Docs.remove(dados.obs?.link)
+    Docs.remove(dados.obs)
 
     const db = this.getDB()
 
@@ -356,9 +356,7 @@ class Eventos {
       const evento = this.busca(eventoId)
       if (!evento) return false
 
-      return evento.datas.some(d1 => datas.some(d2 => _isInside(d1, d2)
-      )
-      )
+      return evento.datas.some(d1 => datas.some(d2 => isInside(d1, d2)))
     }
 
     locais.forEach(local => {
@@ -383,7 +381,7 @@ class Eventos {
       if (setorOcupado) {
         const evento = this.busca(setorOcupado)
 
-        const data = evento.datas.find(d1 => datas.some(d2 => _isInside(d1, d2)))
+        const data = evento.datas.find(d1 => datas.some(d2 => isInside(d1, d2)))
 
         const [inicio, fim] = [data.inicio, data.fim].map(e => new Date(e))
 
@@ -404,7 +402,7 @@ class Eventos {
           local = Locais.busca(evento.locais.find(l => l.split('.')[0] == local.id))
         }
 
-        const data = evento.datas.find(d1 => datas.some(d2 => _isInside(d1, d2)))
+        const data = evento.datas.find(d1 => datas.some(d2 => isInside(d1, d2)))
 
         const [inicio, fim] = [data.inicio, data.fim].map(e => new Date(e))
 
@@ -579,9 +577,9 @@ class Docs {
     return doc.getUrl()
   }
 
-  static edit(url, obs) {
-    if (!url) return
-    const match = url.match(/\/d\/([a-zA-Z0-9\-_]+)/)
+  static edit(obs) {
+    if (!obs.link) return
+    const match = obs.link.match(/\/d\/([a-zA-Z0-9_-]+)/) || obs.link.match(/[?&]id=([a-zA-Z0-9_-]+)/)
     if (!match) return
 
     const doc = DocumentApp.openById(match[1])
@@ -590,9 +588,9 @@ class Docs {
     doc.saveAndClose()
   }
 
-  static remove(url) {
-    if (!url) return
-    const match = url.match(/\/d\/([a-zA-Z0-9\-_]+)/)
+  static remove(obs) {
+    if (!obs.link) return
+    const match = obs.link.match(/\/d\/([a-zA-Z0-9_-]+)/) || obs.link.match(/[?&]id=([a-zA-Z0-9_-]+)/)
     if (!match) return
     DriveApp.getFileById(match[1]).setTrashed(true)
   }

@@ -129,7 +129,7 @@ function debug(msg){
 }
 
 
-function _isInside(x,y){
+function isInside(x,y){
     [x,y] = [x,y].map(i => ({inicio: new Date(i.inicio), fim: new Date(i.fim)}))
     return x.inicio <= y.fim && y.inicio <= x.fim
   }

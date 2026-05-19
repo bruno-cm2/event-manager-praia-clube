@@ -1,4 +1,5 @@
 <style>
+
   .ql-toolbar{
     border-top: none !important;
     border-left: none !important;
@@ -6,21 +7,25 @@
   }
   .ql-container {
     border: none !important;
+    overflow: hidden !important
   }
 
   .ql-editor {
-    min-height: calc(5 * 1.5em); /* 5 linhas × line-height */
+    min-height: calc(5 * 1.5em);
+    max-height: calc(7 * 1.5em);
     line-height: 1.5;
+    overflow: auto !important
   }
+
 </style>
 
-<div class="d-flex flex-column gap-4" id="add-container">
-  
-  <!-- TÍTULO -->   
-  <input id="titulo" class="form-control" placeholder="Título">
+<div class="d-flex gap-3 flex-grow-1" style="min-height: 0">
+  <div class="col-7 d-flex flex-column gap-4" id="add-container">
+    
+    <!-- TÍTULO -->   
+    <input id="titulo" class="form-control" placeholder="Título">
 
-  <!-- DATA E TIPO-->
-  <div class="col">
+    <!-- DATA E TIPO-->
     <div class="row g-2">
 
       <!-- tipo -->
@@ -52,44 +57,39 @@
           </button>
         </div>
       </div>
+
     </div>
 
-    <!-- datas selecionadas -->
-    <div id="datasSelecionadas" class="d-flex flex-wrap gap-2"></div>
+    <!-- LOCAIS -->
+    <div class="d-flex">  
+      <div class="col">
 
-  </div>
+        <div class="dropdown w-100">
+          <button class="btn btn-outline-secondary w-100 text-start dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            Selecionar locais
+          </button>
+          <div class="dropdown-menu px-2 shadow-sm w-100">
 
-  <!-- LOCAIS -->
-  <div class="d-flex">  
-    <div class="col">
-
-      <div class="dropdown w-100">
-        <button class="btn btn-outline-secondary w-100 text-start dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-          Selecionar locais
-        </button>
-        <div class="dropdown-menu px-2 shadow-sm w-100">
-
-          <!-- busca -->
-          <input id="busca-locais" class="form-control mb-2" placeholder="Buscar setor ou quadra">
-          
-          <!-- lista dinâmica -->
-          <div id="lista-locais" style="overflow:auto; max-height: 220px"></div>
+            <!-- busca -->
+            <input id="busca-locais" class="form-control mb-2" placeholder="Buscar setor ou quadra">
+            
+            <!-- lista dinâmica -->
+            <div id="lista-locais" style="overflow:auto; max-height: 220px"></div>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- selecionados (cresce verticalmente) -->
-      <div id="locaisSelecionados" class="d-flex flex-wrap gap-1"></div>
+    <!-- DESCRIÇÃO -->
+    <div class="border rounded overflow-hidden">
+      <div id="obs"></div>
+    </div>
 
+    <!-- AÇÕES -->
+    <div id="submit" class="d-flex gap-2 justify-content-end">
+      <button id="submit-btn" class="btn btn-outline-secondary rounded" type="submit">Adicionar</button>
     </div>
   </div>
 
-  <!-- DESCRIÇÃO -->
-  <div class="border rounded">
-    <div id="obs"></div>
-  </div>
-
-  <!-- AÇÕES -->
-  <div id="submit" class="d-flex justify-content-end">
-    <button id="submit-btn" class="btn btn-outline-secondary rounded" type="submit">Adicionar</button>
-  </div>
+  <div class="col p-3 d-flex flex-column flex-grow-1 border border-2 rounded mb-4 overflow-clip shadow-sm" style="min-height: 0" id="preview"></div>
 </div>
