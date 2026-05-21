@@ -5,7 +5,8 @@ function doGet(e) {
   html.lc = Locais.getDB()
   html.tipos = cores
   html.cache = PropertiesService.getUserProperties().getProperty('CACHE') || '{}'
-  return html.evaluate().setTitle('Painel de Comandos').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+  html.users = Registro.getUsers()
+  return html.evaluate().setTitle('Painel de eventos Praia Clube').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
 }
 
 function getScriptUrl() {

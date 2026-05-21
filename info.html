@@ -1,16 +1,12 @@
 <style>
   
-  .removable:hover, .removable:hover{
+  .removable:hover{
     color: red
   }
 
   #info-obs p {
     margin: 0;
     line-height: 1.5em;
-  }
-
-  .fst-italic{
-    color: var(--bs-secondary);
   }
 
 </style>
@@ -20,15 +16,25 @@
   <span id="info-tipo" class="badge mb-3 text-bg-secondary" style="">Tipo</span>
 </div>
 <div id="info-container" class="col overflow-auto" style="min-height: 0">
-  <div class="d-flex gap-2 align-items-baseline">
+  <div class="d-flex align-items-baseline">
+    <i class="bi bi-person"></i>
     <p class="fw-semibold mb-0">Criador:</span>
-    <p class="small mb-0" id="info-criador"></span>
+    <p class="small ms-2 mb-0" id="info-criador"></span>
   </div>
-  <p class="fw-semibold fst-italic mt-3 mb-0" id="datas-label">Datas</p>
+  <div class="d-flex align-items-baseline fst-italic" id="datas-label">
+    <i class="bi bi-calendar-plus"></i>
+    <p class="fw-semibold mt-3 mb-0">Datas</p>
+  </div>
   <div id="info-datas"></div>
-  <p class="fw-semibold fst-italic mt-3 mb-0" id="locais-label">Locais</p>
+  <div class="d-flex align-items-baseline fst-italic" id="locais-label">
+    <i class="bi bi-pin-map-fill"></i>
+    <p class="fw-semibold mt-3 mb-0">Locais</p>
+  </div>
   <div id="info-locais">
   </div>
-  <p class="fw-semibold fst-italic mt-3" id="obs-label">Observações</p>
+  <div class="d-flex align-items-baseline fst-italic"  id="obs-label">
+    <i class="bi bi-card-text"></i>
+    <p class="fw-semibold mt-3">Observações</p>
+  </div>
   <div class="small" id="info-obs"></div>
 </div>

@@ -2,6 +2,22 @@ function _saveDB(DB){
   Locais._saveDB(DB)
 }
 
+function saveLog(user, error){
+  const props = PropertiesService.getScriptProperties()
+  const json = props.getProperty("Errors")
+
+  let log = {}
+
+  if (!json) {
+    log = { errors: [] }
+    props.setProperty("Erros", JSON.stringify(log))
+  }
+
+  else log = JSON.parse(json)
+  
+  log.errors.push({user, error})
+} 
+
 function login(user, pass){
   return Registro.login(user, pass)
 }

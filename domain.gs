@@ -415,7 +415,6 @@ class Eventos {
 }
 
 
-
 class Registro {
 
   static getDB() {
@@ -491,6 +490,17 @@ class Registro {
     db.users[key].senha = this.encode(nova)
 
     this._saveDB(db)
+  }
+
+  static getUsers(){
+
+    const db = this.getDB()
+
+    const users = {}
+
+    Object.entries(db.users).forEach(([id, {senha, ...user}]) => users[id] = user)
+
+    return users
   }
 
   static encode(senha) {
