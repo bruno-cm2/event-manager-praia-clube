@@ -1,21 +1,9 @@
-function _saveDB(DB){
-  Locais._saveDB(DB)
+function _saveDB(){
+  Logs._saveDB({"errors":[{"user":{"criado":"2026-04-28T17:36:50.286Z","nome":"Vinicius","email":"vinicius.campos@praiaclube.org.br","departamento":"Esporte","expiresAt":1780406575596,"setor":"Esporte","sobrenome":"Campos","admin":true,"senha":"**********"},"error":"Alterações salvas"}]})
 }
 
-function saveLog(user, error){
-  const props = PropertiesService.getScriptProperties()
-  const json = props.getProperty("Errors")
-
-  let log = {}
-
-  if (!json) {
-    log = { errors: [] }
-    props.setProperty("Erros", JSON.stringify(log))
-  }
-
-  else log = JSON.parse(json)
-  
-  log.errors.push({user, error})
+function saveLog(user, error, data){
+  Logs.saveLog({user, error, data})
 } 
 
 function login(user, pass){
@@ -42,6 +30,14 @@ function apagarLocal(id, dev){
 
 function renomearLocal(id, nome){
   Locais.renomearLocal(id, nome)
+}
+
+function saveUsers(DB){
+  Registro.setUsers(DB)
+}
+
+function apagarConta(email){
+  Registro.apagarConta(email)
 }
 
 function addEvento(evento){
@@ -101,7 +97,7 @@ function updateSheet(planilha, meses, infoEvento, tipo){
     linha.insertCells(SpreadsheetApp.Dimension.ROWS)
     linha.setValues([infoEvento])
     linha.setBorder(true,true,true,true,true,true,header.getBackground(), SpreadsheetApp.BorderStyle.SOLID)
-    linha.setFontFamily('Arial').setFontSize(9).setFontWeight('bold').setVerticalAlignment('middle').setHorizontalAlignment('center').setFontColor(cores[tipo].sheet).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP)
+    linha.setFontFamily('Arial').setFontSize(9).setFontWeight('bold').setVerticalAlignment('middle').setHorizontalAlignment('center').setFontColor(tipos[tipo].sheet).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP)
   }
 }
 

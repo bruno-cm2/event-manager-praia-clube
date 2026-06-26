@@ -232,7 +232,7 @@ class Eventos {
         start: { dateTime: inicio },
         end: { dateTime: fim },
         location: locais.map(l => l.tipo == 'setor' ? l.nome : l.setor + ' - ' + l.nome),
-        colorId: cores[tipo].calendar,
+        colorId: tipos[tipo].calendar,
         description: evento.obs.html,
         extendedProperties: {
           private: {
@@ -298,7 +298,7 @@ class Eventos {
         start: { dateTime: inicio },
         end: { dateTime: fim },
         location: locais.map(l => l.tipo == 'setor' ? l.nome : l.setor + ' - ' + l.nome),
-        colorId: cores[tipo].calendar,
+        colorId: tipos[tipo].calendar,
         description: evento.obs.html,
         extendedProperties: {
           private: {
@@ -339,7 +339,7 @@ class Eventos {
       try { Calendar.Events.remove(idAgenda, data.serverID) } catch { }
     }
 
-    Docs.remove(dados.obs)
+    try{Docs.remove(dados.obs)}catch{}
 
     const db = this.getDB()
 
@@ -492,6 +492,19 @@ class Registro {
     this._saveDB(db)
   }
 
+  static apagarConta(email){
+
+    const db = this.getDB()
+
+    const key = 'user_' + email
+
+    if (!db.users[key]) throw new Error('Erro crítico: Usuário não encontrado')
+
+    delete db.users[key]
+
+    this._saveDB(db)
+  }
+
   static getUsers(){
 
     const db = this.getDB()
@@ -501,6 +514,16 @@ class Registro {
     Object.entries(db.users).forEach(([id, {senha, ...user}]) => users[id] = user)
 
     return users
+  }
+
+  static setUsers(users) {
+    const db = this.getDB()
+    
+    Object.entries(users).forEach(([id, user]) => {
+      db.users[id] = { ...db.users[id], ...user }
+    })
+    
+    this._saveDB(db)
   }
 
   static encode(senha) {
@@ -588,7 +611,8 @@ class Docs {
   }
 
   static edit(obs) {
-    if (!obs.link) return
+    if (!obs || !obs.link) return
+    Logger.log(obs.link)
     const match = obs.link.match(/\/d\/([a-zA-Z0-9_-]+)/) || obs.link.match(/[?&]id=([a-zA-Z0-9_-]+)/)
     if (!match) return
 
@@ -600,9 +624,60 @@ class Docs {
 
   static remove(obs) {
     if (!obs.link) return
+    Logger.log(obs.link)
     const match = obs.link.match(/\/d\/([a-zA-Z0-9_-]+)/) || obs.link.match(/[?&]id=([a-zA-Z0-9_-]+)/)
     if (!match) return
     DriveApp.getFileById(match[1]).setTrashed(true)
+  }
+}
+
+class Logs{
+
+  static getDB(){
+
+    if(this._cache) return this._cache
+
+    const props = PropertiesService.getScriptProperties()
+    const json = props.getProperty(this.KEY)
+
+    if (!json) {
+      const inicial = { errors: [] }
+      props.setProperty(this.KEY, JSON.stringify(inicial))
+      return inicial
+    }
+
+    this._cache = JSON.parse(json)
+    return this._cache
+  }
+
+  static _saveDB(db){
+    PropertiesService.getScriptProperties().setProperty(this.KEY, JSON.stringify(db))
+    this._cache = db
+  }
+
+  static saveLog(log){
+    const db = this.getDB()
+
+    db.errors.push(log)
+    
+    this._saveDB(db)
+  }
+
+  static clearLogs(){
+    const db = this.getDB()
+
+    db.errors = []
+    
+    this._saveDB(db)
+  }
+
+  static showLogs(){
+    const db = this.getDB()
+
+    db.errors.forEach(e => {
+      const {nome, sobrenome} = e.user
+      Logger.log(`${nome} ${sobrenome}\n${e.error}`)
+    })
   }
 }
 
@@ -614,6 +689,9 @@ Eventos._cache = null
 
 Registro.KEY = "DB_REGISTRO"
 Registro._cache = null
+
+Logs.KEY = "DB_LOGS"
+Logs._cache = null
 
 Date.prototype.data = function () {
   return this.toLocaleDateString('pt-BR', {

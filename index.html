@@ -148,8 +148,8 @@
       height: auto !important;
     }
 
-    .btn{
-    transition:  background-color 0.15s ease
+    *{
+      transition:  color 0.1s ease, background-color 0.1s ease
     }
 
     #collapse {
@@ -159,7 +159,7 @@
       z-index: 10;
       top: 0.5rem !important;
       left: 0.5rem !important;
-      transition: left 0.2s ease, top 0.2s ease;
+      transition: left 0.2s ease, top 0.2s ease, background-color 0.125s ease;
       padding: 0;
       border: none
     }
@@ -312,6 +312,8 @@
   <script>
     const skipLogin = false
     const start = 'eventos'
+    const timeout = 15 * 60
+
     let dev = false
 
     const EV = <?!= JSON.stringify(ev) ?>;
@@ -320,8 +322,11 @@
     const CACHE = <?!= cache ?>;
 
     const TIPOS = <?!= JSON.stringify(tipos) ?>;
+    const DP = <?!= JSON.stringify(departamentos) ?>;
 
     let USERS = {}
+
+    const masters = <?!= JSON.stringify(masters) ?>;
 
     const shortcodeMap = {}
 
@@ -394,7 +399,7 @@
       toastMsg.querySelector('.toast-body').innerHTML = text
       msg = bootstrap.Toast.getOrCreateInstance(toastMsg, {autohide: true, delay: 3000})
       msg.show()
-      google.script.run.saveError(userData, error)
+      google.script.run.saveLog(userData, text)
     }
 
     function toastWait(text, errors = null){
@@ -470,6 +475,21 @@
         })
 
         return aninhada
+      },
+
+      renderDeps(btn, ops, func = null){
+        ops.innerHTML = DP.map(d => {
+          return `
+          <li class="px-1">
+            <a class="dropdown-item ps-2 rounded ${d=='Todos' ? 'fw-semibold' : ''}">${d}</a>
+          </li>
+          `}).join('');
+        [...ops.querySelectorAll('a')].forEach(a => a.onclick = () => {
+          btn.textContent = a.textContent
+          btn.classList.remove('btn-outline-secondary')
+          btn.classList.add('btn-secondary')
+          if(func) func()
+        })
       },
       
       Add: {
@@ -805,7 +825,7 @@
             enable(this.submitBtn)
           }).withSuccessHandler(() => {
             toast('Adicionado', 'success')
-            refresh('add')
+            refresh('eventos')
           }).addEvento(evento)
         }
       },
@@ -853,7 +873,7 @@
           const evento = Control.Add.buildEvento()
           evento.id = id
           evento.criador = this.evento.criador
-          evento.obs.link = this.evento.obs?.link
+          if(this.evento.obs && this.evento.obs.link) evento.obs.link = this.evento.obs.link  
 
           const buttons = [this.saveBtn, this.cancelBtn]
 
@@ -1094,6 +1114,7 @@
 
         bind(){
           this.busca.oninput = () => this.renderSetores()
+          this.busca2.oninput = () => this.renderQuadras()
           this.listaSetores.onchange = () => this.renderQuadras()
           this.listaSetores.addEventListener("keydown", e => {
             switch (e.key) {
@@ -1171,13 +1192,14 @@
           this.listaSetores.innerHTML = ''
 
           if (!setores.length) {
-            this.listaSetores.innerHTML = `<option disabled>Nenhum setor</option>`
+            this.listaSetores.innerHTML = `<option class="p-2" disabled>Nenhum setor encontrado</option>`
             return
           }
 
           setores.forEach(s => {
             const opt = document.createElement('option')
             opt.value = s.id
+            opt.classList.add('py-1', 'px-2', 'rounded')
             opt.textContent = s.nome
             this.listaSetores.appendChild(opt)
           })
@@ -1203,13 +1225,14 @@
           this.listaQuadras.innerHTML = ''
 
           if (!quadras || !quadras.length){
-            this.listaQuadras.innerHTML = `<option disabled>Nenhuma quadra</option>`
+            this.listaQuadras.innerHTML = `<option class="p-2" disabled>Nenhuma quadra encontrada</option>`
             return
           }
 
           quadras.forEach(s => {
             const opt = document.createElement('option')
             opt.value = s.id
+            opt.classList.add('py-1', 'px-2', 'rounded')
             opt.textContent = s.nome
             this.listaQuadras.appendChild(opt)
           })
@@ -1389,6 +1412,8 @@
           this.newPass = document.getElementById('new-pass')
           this.saveBtn = document.getElementById('save-btn')
           this.cancelBtn = document.getElementById('cancel-btn')
+
+          this.signOut = document.getElementById('sign-out')
         },
 
         bind(){
@@ -1401,6 +1426,7 @@
           this.changeBtn.onclick = () => this.changePass()
           this.saveBtn.onclick = () => this.submitPass()
           this.cancelBtn.onclick = () => this.back()
+          this.signOut.onclick = () => this.sair()
         },
 
         changePass(){
@@ -1437,6 +1463,12 @@
           this.panelMain.classList.remove('d-none')
           this.panelChange.classList.add('d-none')
           this.senha.value = userData.senha
+        },
+
+        sair(){
+          localStorage.removeItem('userData')
+          this.signOut.classList.add('disabled')
+          refresh(start)
         }
       },
 
@@ -1464,6 +1496,8 @@
           this.painelRegister = document.getElementById('painel-register')
           this.regNome = document.getElementById('reg-nome')
           this.regSobrenome = document.getElementById('reg-sobrenome')
+          this.regDeps = document.getElementById('reg-deps')
+          this.regDep = document.getElementById('reg-dep')
           this.regSetor = document.getElementById('reg-setor')
           this.regEmail = document.getElementById('reg-email')
           this.regPass = document.getElementById('reg-pass')
@@ -1491,11 +1525,10 @@
         },
 
         login() {
-          const user = this.user.value.trim() + '@praiaclube.org.br'
+          const user = this.user.value.trim().replace('@praiaclube.org.br', '') + '@praiaclube.org.br'
           const pass = this.pass.value
 
           if(!user || !pass) return this.setErr('Preencha todos os campos')
-          if(pass.length < 6) return this.setErr('Escolha uma senha maior')
           this.setErr('')
 
           disable(this.loginBtn)
@@ -1511,11 +1544,15 @@
               document.body.classList.remove('view-login')
               msg.hide()
               userData = {senha: '*'.repeat(pass.length), ...data}
+
+              userData.expiresAt = Date.now() + timeout * 1000
               localStorage.setItem('userData', JSON.stringify(userData))
+
               go(location.hash.slice(1) || start)
               if(userData?.admin){
                 [...document.querySelectorAll(".restricted")].forEach(v => v.hidden = false)
                 USERS = <?!= JSON.stringify(users) ?>;
+                DP.unshift('Todos')
               }
           }).login(user, pass)
         },
@@ -1524,6 +1561,7 @@
           this.painelLogin.classList.add('d-none')
           this.painelRegister.classList.remove('d-none')
           this.regEmail.value = this.user.value
+          Control.renderDeps(this.regDep, this.regDeps)
         },
 
         back() {
@@ -1535,12 +1573,15 @@
         submitRegister() {
           const nome = this.regNome.value.trim()
           const sobrenome = this.regSobrenome.value.trim()
+          const departamento = this.regDep.textContent
           const setor = this.regSetor.value.trim()
-          const email = this.regEmail.value.trim() + '@praiaclube.org.br'
+          const email = this.regEmail.value.trim().split('@')[0] + '@praiaclube.org.br'
           const senha = this.regPass.value
-
-          if (!nome || !setor || !email || !senha)
-            return this.regErr.textContent = 'Preencha todos os campos', this.regErr.classList.remove('d-none')
+          
+        if(!nome || !setor || !email || !senha)
+          return this.regErr.textContent = 'Preencha todos os campos', this.regErr.classList.remove('d-none')
+        if(senha.length < 6) 
+          return this.regErr.textContent = 'Escolha uma senha maior', this.regErr.classList.remove('d-none')
 
           this.regErr.classList.add('d-none')
           disable(this.regBtn)
@@ -1555,7 +1596,7 @@
             .withSuccessHandler(() => {
               this.back()
               toast('Conta criada!', 'success')
-          }).cadastrar({nome, sobrenome, setor, email, senha})
+          }).cadastrar({nome, sobrenome, departamento, setor, email, senha})
         }
       },
 
@@ -1686,10 +1727,16 @@
       Users: {
 
         header: '<i class="bi bi-person-badge-fill text-warning" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Lista de Usuários</h2>',
+        
+        master(e){
+          return masters.includes(e.split('@')[0])
+        },
 
         init(){
           this.getDOM()
+          this.bind()
           this.renderUsers()
+          Control.renderDeps(this.setoresBtn, this.setores, () => this.filtrar())
         },
 
         getDOM(){
@@ -1698,49 +1745,65 @@
           this.setores = document.getElementById("user-setores")
           this.users = document.getElementById("users")
           this.info = document.getElementById("user-info")
+          this.saveBtn = document.getElementById("user-save")
           this.selected = null
         },
 
         bind(){
-          this.busca.onchange = () => this.renderUsers() 
+          this.busca.oninput = () => this.filtrar()
+          this.saveBtn.onclick = () => this.salvar()
         },
 
         renderUsers(obj = USERS){
-          console.log(obj)
           this.users.innerHTML = ''
-          Object.entries(obj).forEach(([id, user]) => {
-            const {nome, sobrenome, setor, admin} = user
-            const us = document.createElement('div')
-            us.className = `d-flex align-items-center p-1 px-3 border-bottom`
-            us.id = id
-            us.style.cursor = 'pointer'
-            us.innerHTML = `
-            <div class="d-flex flex-column">
-              <div class="fw-semibold">${nome} ${sobrenome}</div>
-              <small class="opacity-75">${setor}</small>
-            </div>
-            <button class="ms-auto btn btn-sm btn-${admin ? 'dark' : 'light'}" disabled>Administrador</button>
-            `
-            const btn = us.querySelector('button')
-            btn.onclick = () => {
-              btn.classList.toggle('btn-light')
-              btn.classList.toggle('btn-dark')
-            }
-            us.onclick = () => {
-              if(this.selected) {
-                const classList = [...this.selected.classList]
-                this.selected.classList.remove(classList.find(c => c.startsWith('bg-')), 'text-white')
+          if(!Object.keys(obj).length) this.users.innerHTML = '<option class="p-3" disabled>Nenhum usuário encontrado</option>'
+          else{
+            Object.entries(obj).sort(([, a], [, b]) => {
+              if (this.master(a.email) != this.master(b.email)) return this.master(b.email) - this.master(a.email)
+              if (b.admin !== a.admin) return b.admin - a.admin
+              return a.nome.localeCompare(b.nome)
+            }).forEach(([id, user]) => {
+              const {nome, email, sobrenome, setor, admin} = user
+              const us = document.createElement('div')
+              us.className = `d-flex align-items-center p-1 px-3 border-bottom`
+              us.id = id
+              us.style.cursor = 'pointer'
+              us.innerHTML = `
+              <div class="d-flex flex-column">
+                <div class="fw-semibold">${nome} ${sobrenome}</div>
+                <small class="opacity-75">${setor}</small>
+              </div>
+              <button class="ms-auto btn btn-sm btn-${admin ? 'dark' : 'light border-secondary'}">Administrador</button>
+              `
+              us.onclick = () => {
+                if(this.selected) {
+                  const classList = [...this.selected.classList]
+                  this.selected.classList.remove(classList.find(c => c.startsWith('bg-')), 'text-white')
+                }
+                us.classList.add('bg-primary', 'text-white')
+                this.selected = us
+                this.renderInfo(user)
               }
-              us.classList.add('bg-primary', 'text-white')
-              this.selected = us
-              this.renderInfo(user)
-            }
-            this.users.appendChild(us)
-          })
+              const btn = us.querySelector('button')
+              if(this.master(email)) btn.remove()
+              else if(this.master(userData.email)) btn.onclick = (e) => {
+                e.stopPropagation()
+                USERS[id].admin = !USERS[id].admin
+                this.renderUsers()
+                document.getElementById(id).click()
+              }
+              else{
+                btn.classList.add('disabled')
+                btn.style.cursor = 'default'
+              }
+              this.users.appendChild(us)
+            })
+          }
         },
 
         renderInfo(user){
-          const {nome, sobrenome, setor, email, admin} = user
+          const {nome, sobrenome, setor, email, admin, criado} = user
+          const master = this.master(userData.email) && !this.master(email)
 
           this.info.innerHTML = `
             <div class="d-flex align-items-baseline">
@@ -1761,25 +1824,88 @@
               <p class="small ms-1 mb-0">${email}</span>
             </div>
             <div class="d-flex align-items-baseline">
+              <i class="bi bi-clock-history"></i>
+              <p class="fw-semibold mb-0">Criado em:</span>
+              <p class="small ms-1 mb-0">${new Date(criado).datahora()}</span>
+            </div>
+            <div class="d-flex align-items-baseline">
               <i class="bi bi-gear"></i>
               <p class="fw-semibold mb-0">Administrador:</span>
               <p class="small ms-1 mb-0">${admin ? 'Sim' : 'Não'}</span>
             </div>
-          `
+          ` + (master ? '<button class="btn btn-outline-danger mt-auto ms-auto">Apagar conta</button>' : '')
+          
+          if(master) this.info.querySelector('button').onclick = () => this.apagar(email)
+        },
+
+        filtrar(){
+          const filtrado = Object.fromEntries(
+            Object.entries(USERS).filter(([id, user]) => {
+
+              const {nome, sobrenome, departamento} = user
+
+              const text = this.busca.value
+              const pesquisa = `${nome} ${sobrenome}`.includes(text) || text == ''
+              const dep = this.setoresBtn.textContent
+              const pertence = dep == 'Setor' || dep == 'Todos' || departamento == dep
+
+              return pesquisa && pertence
+            })
+          )
+        this.renderUsers(filtrado)
+        },
+
+        salvar(){
+          toastWait("Salvando alterações...")
+          google.script.run.withFailureHandler(err => toast(err.message, 'danger'))
+          .withSuccessHandler(() => {
+            toast("Alterações salvas", 'success')
+            refresh('users')
+          }).saveUsers(USERS)
+        },
+
+        apagar(email){
+          toastWait("Apagando usuário...")
+          google.script.run.withFailureHandler(err => toast(err.message, 'danger'))
+          .withSuccessHandler(() => {
+            toast("Usuário apagado", 'success')
+            refresh('users')
+          }).apagarConta(email)
         }
       }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
       if(!skipLogin){ 
+        const saved = localStorage.getItem('userData')
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (parsed.expiresAt && Date.now() < parsed.expiresAt) {
+            userData = parsed
+            document.body.classList.remove('view-login')
+            go(location.hash.slice(1) || start)
+            if (userData?.admin) {
+              [...document.querySelectorAll(".restricted")].forEach(v => v.hidden = false)
+              USERS = <?!= JSON.stringify(users) ?>;
+              DP.unshift('Todos')
+            }
+            return
+          } else {
+            localStorage.removeItem('userData')
+          }
+        }
+
         const loginTpl = document.getElementById('view-login')
         document.body.appendChild(loginTpl.content.cloneNode(true))
         Control.Login.init()
       }
       else{
-        userData = {nome: "Dev", sobrenome: "da Silva", email: "aurea.ego@praiaclube.org.br", senha: "coxinha123", admin: true, setor: "Deus supremo"}
+        userData = {nome: "Dev", sobrenome: "da Silva", email: "aurea.ego@praiaclube.org.br", senha: "coxinha123", admin: true, setor: "Deus supremo"};
+        [...document.querySelectorAll(".restricted")].forEach(v => v.hidden = false)
+        USERS = <?!= JSON.stringify(users) ?>;
         go(start)
         dev = true
+        DP.unshift('Todos')
       }
     })
 

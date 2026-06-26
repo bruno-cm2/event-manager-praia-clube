@@ -20,7 +20,7 @@
             <label class="form-label">Senha</label>
             <div class="input-group pass-input">
               <input type="password" id="login-pass" class="form-control" placeholder=" ">
-              <button class="btn btn-light btn-outline-secondary border-start-0" tabindex="-1">
+              <button class="btn btn-light btn-outline-secondary" tabindex="-1">
                 <i class="bi bi-eye-fill"></i>
               </button>
             </div>
@@ -40,7 +40,15 @@
             <input type="text" id="reg-nome" class="form-control" placeholder="Nome">
             <input type="text" id="reg-sobrenome" class="form-control" placeholder="Sobrenome">
           </div>
-          <input type="text" id="reg-setor" class="form-control mb-3" placeholder="Setor">
+          <div class="d-flex gap-3 mb-3">
+            <div class="dropdown col-4">
+              <button id="reg-dep" class="btn btn-outline-secondary text-start w-100 dropdown-toggle" data-bs-toggle="dropdown">
+                Área
+              </button>
+              <ul id="reg-deps" class="dropdown-menu py-1"></ul>
+            </div>
+            <input type="text" id="reg-setor" class="col form-control" placeholder="Setor">
+          </div>
           <div class="input-group mb-3">
             <input type="text" id="reg-email" class="form-control" placeholder="E-mail">
             <span class="input-group-text">@praiaclube.org.br</span>
@@ -51,7 +59,7 @@
               <i class="bi bi-eye-fill"></i>
             </button>
           </div>
-          <div id="register-err" class="text-danger small d-none mt-1 mb-2"></div>
+          <div id="register-err" class="text-danger small d-none mt-1 mb-2 d-none"></div>
         </div>
         <div class="modal-footer border-0 flex-column px-4 pb-3 gap-2">
           <button class="btn btn-primary w-100 ms-0" id="register-submit-btn">Cadastrar</button>
