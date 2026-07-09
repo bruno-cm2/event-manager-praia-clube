@@ -1729,6 +1729,7 @@
         header: '<i class="bi bi-person-badge-fill text-warning" style="font-size: 1.6rem"></i><h2 style="left: -0.2rem">Lista de Usuários</h2>',
         
         master(e){
+          console.log(e)
           return masters.includes(e.split('@')[0])
         },
 
@@ -1759,6 +1760,7 @@
           if(!Object.keys(obj).length) this.users.innerHTML = '<option class="p-3" disabled>Nenhum usuário encontrado</option>'
           else{
             Object.entries(obj).sort(([, a], [, b]) => {
+              console.log(a)
               if (this.master(a.email) != this.master(b.email)) return this.master(b.email) - this.master(a.email)
               if (b.admin !== a.admin) return b.admin - a.admin
               return a.nome.localeCompare(b.nome)
@@ -1802,7 +1804,7 @@
         },
 
         renderInfo(user){
-          const {nome, sobrenome, setor, email, admin, criado} = user
+          const {nome, sobrenome, departamento, setor, email, admin, criado} = user
           const master = this.master(userData.email) && !this.master(email)
 
           this.info.innerHTML = `
@@ -1814,7 +1816,12 @@
               <p class="small ms-1 mb-0">${sobrenome}</span>
             </div>
             <div class="d-flex align-items-baseline">
-              <i class="bi bi-pin-map"></i>
+              <i class="bi bi-diagram-3"></i>
+              <p class="fw-semibold mb-0">Departamento:</span>
+              <p class="small ms-1 mb-0">${departamento}</span>
+            </div>
+            <div class="d-flex align-items-baseline">
+              <i class="bi bi-person-workspace"></i>
               <p class="fw-semibold mb-0">Setor:</span>
               <p class="small ms-1 mb-0">${setor}</span>
             </div>
@@ -1833,9 +1840,17 @@
               <p class="fw-semibold mb-0">Administrador:</span>
               <p class="small ms-1 mb-0">${admin ? 'Sim' : 'Não'}</span>
             </div>
-          ` + (master ? '<button class="btn btn-outline-danger mt-auto ms-auto">Apagar conta</button>' : '')
+          ` + (master ? `
+              <div class="d-flex mt-auto ms-auto gap-2">
+                <button id="user-edit" class="btn btn-outline-secondary">Editar Conta</button>
+                <button id="user-del" class="btn btn-outline-danger">Apagar conta</button>
+              </div>
+            `: '')
           
-          if(master) this.info.querySelector('button').onclick = () => this.apagar(email)
+          if(master){
+            this.info.querySelector('#user-edit').onclick = () => this.editar(user)
+            this.info.querySelector('#user-del').onclick = () => this.apagar(email)
+          }
         },
 
         filtrar(){
@@ -1862,6 +1877,97 @@
             toast("Alterações salvas", 'success')
             refresh('users')
           }).saveUsers(USERS)
+        },
+
+        editar(user){
+          console.log(user)
+          const modalHtml = `
+            <div class="modal fade" id="modal-user" tabindex="-1">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Editar usuário</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body">
+                    ${Object.entries(user).filter(([key]) => !['admin', 'criado', 'departamento'].includes(key)).map(([key, value]) => `
+                      <div id="${key == 'setor' ? 'setor-div' : ''}"class="d-flex gap-2 align-items-center mb-2">
+                        <label id="${key}">${capital(key) + ':'}</label>
+                        <input class="form-control" value="${value}" ${key == 'email' ? 'disabled' : ''}>
+                      </div>
+                    `).join('')}
+                  </div>
+                  <div class="modal-footer">
+                    <div class="d-flex ms-auto gap-2">
+                      <button id="user-save" class="btn btn-outline-primary">Salvar</button>
+                      <button id="user-cancel" class="btn btn-outline-secondary">Cancelar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>`
+
+          const depHtml =`
+            <div class="d-flex gap-2 align-items-center mb-2">
+              <label> Departamento: </label>
+              <div class="dropdown w-100">
+                <button id="user-dep" class="btn btn-outline-secondary text-start text-${user.departamento ? 'dark' : 'danger'} w-100 dropdown-toggle" data-bs-toggle="dropdown">
+                  ${user.departamento || 'Indefinido'}
+                </button>
+                <ul class="dropdown-menu py-1">
+                  ${DP.filter(i => i != 'Todos').map(d => `
+                    <li class="px-1">
+                      <a class="dropdown-item ps-2 rounded">${d}</a>
+                    </li>
+                  `).join('')}
+                </ul>
+              </div>
+            </div>`
+
+          document.body.insertAdjacentHTML('beforeend', modalHtml)
+
+          const modalUserEl = document.getElementById('modal-user')
+          const modalUser = new bootstrap.Modal(modalUserEl)
+
+          modalUserEl.querySelector('#setor-div').insertAdjacentHTML('beforebegin', depHtml)
+
+          const saveBtn = modalUserEl.querySelector('#user-save')
+          const cancelBtn = modalUserEl.querySelector('#user-cancel')
+
+          let userDep
+
+          modalUserEl.querySelectorAll('li').forEach(li => {
+            li.onclick = () => {
+              const text = li.querySelector('a').textContent
+              modalUserEl.querySelector('#user-dep').textContent = text
+              userDep = text
+            }
+          })
+
+          saveBtn.onclick = () => {
+            const editedUser = {
+              ...Object.fromEntries(
+                [...modalUserEl.querySelectorAll('label[id]')].map((h,i) => [
+                  h.id,
+                  modalUserEl.querySelectorAll('input')[i].value
+                ])
+              ),
+              admin: user.admin,
+              criado: user.criado,
+              departamento: userDep
+            }
+
+            USERS['user_' + editedUser.email] = editedUser
+
+            this.salvar()
+          }
+
+          cancelBtn.onclick = () => modalUser.hide()
+
+          document.getElementById('modal-user').addEventListener('hidden.bs.modal', function () {this.remove()})
+
+          modalUser.show()
+
         },
 
         apagar(email){
